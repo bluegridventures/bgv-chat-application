@@ -62,7 +62,7 @@ const ChatListItem = ({ chat, currentUserId, onClick }: PropsType) => {
          flex items-center justify-between mb-0.5
         "
         >
-          <h5 className="text-sm font-semibold truncate">{name}</h5>
+          <h5 className="text-sm font-semibold truncate capitalize">{name}</h5>
           <span
             className="text-xs
            ml-2 shrink-0 text-muted-foreground
