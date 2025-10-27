@@ -8,9 +8,9 @@ import { NewChatPopover } from "./newchat-popover";
 
 const ChatListHeader = ({ onSearch }: { onSearch: (val: string) => void }) => {
   return (
-    <div className="px-3 py-3 border-b border-border">
+    <div className="px-7 py-3 border-b border-border">
       <div className="flex items-center justify-between mb-3">
-        <h1 className="text-xl font-semibold">Chat</h1>
+        <h1 className="text-xl font-semibold">BlueGrid Ventures</h1>
         <div>
           {/* NewChatPopover */}
           <NewChatPopover />

@@ -44,7 +44,7 @@ const ChatListItem = ({ chat, currentUserId, onClick }: PropsType) => {
     <button
       onClick={onClick}
       className={cn(
-        `w-full flex items-center gap-2 p-2 rounded-sm
+        `w-full flex items-center gap-2 p-2 pl-7 rounded-sm
          hover:bg-sidebar-accent transition-colors text-left`,
         pathname.includes(chat._id) && "!bg-sidebar-accent"
       )}

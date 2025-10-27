@@ -24,12 +24,12 @@ const AsideBar = () => {
     <aside
       className="
   top-0 fixed inset-y-0
-  w-11 left-0 z-[9999]
-  h-svh bg-primary/85 shadow-sm"
+  w-[50px] left-0 z-[9999]
+  h-svh bg-[#1DAB67] shadow-sm"
     >
       <div
         className="
-       w-full h-full px-1 pt-1 pb-6 flex flex-col
+       w-full h-full px-1 pt-2.5 pb-6 flex flex-col
        items-center justify-between"
       >
         <Logo
