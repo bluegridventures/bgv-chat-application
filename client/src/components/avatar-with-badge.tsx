@@ -30,7 +30,7 @@ const AvatarWithBadge = ({
         <AvatarImage src={avatar} />
         <AvatarFallback
           className={cn(
-            `bg-primary/10
+            `dark:bg-primary/40 bg-primary/40
          text-primary font-semibold
         `,
             className && className

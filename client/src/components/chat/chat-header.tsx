@@ -1,7 +1,7 @@
 import { getOtherUserAndGroup } from "@/lib/helper";
 import { PROTECTED_ROUTES } from "@/routes/routes";
 import type { ChatType } from "@/types/chat.type";
-import { ArrowLeft } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AvatarWithBadge from "../avatar-with-badge";
 
@@ -25,8 +25,8 @@ const ChatHeader = ({ chat, currentUserId }: Props) => {
     >
       <div className="h-14 px-4 flex items-center">
         <div>
-          <ArrowLeft
-            className="w-5 h-5 inline-block lg:hidden
+          <ChevronLeft
+            className="w-8 h-8 inline-block lg:hidden
           text-muted-foreground cursor-pointer
           mr-2
           "
@@ -40,9 +40,9 @@ const ChatHeader = ({ chat, currentUserId }: Props) => {
           isOnline={isOnline}
         />
         <div className="ml-2">
-          <h5 className="font-semibold">{name}</h5>
+          <h5 className="font-bold capitalize">{name}</h5>
           <p
-            className={`text-sm ${
+            className={`text-sm font-bold ${
               isOnline ? "text-green-500" : "text-muted-foreground"
             }`}
           >
@@ -50,7 +50,7 @@ const ChatHeader = ({ chat, currentUserId }: Props) => {
           </p>
         </div>
       </div>
-      <div>
+      {/* <div>
         <div
           className={`flex-1
             text-center
@@ -62,7 +62,7 @@ const ChatHeader = ({ chat, currentUserId }: Props) => {
         >
           Chat
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };

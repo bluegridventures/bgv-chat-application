@@ -36,12 +36,12 @@ const ChatMessageBody = memo(({ message, onReply }: Props) => {
   const messageClass = cn(
     "min-w-[200px] px-3 py-2 text-sm break-words shadow-sm",
     isCurrentUser
-      ? "bg-accent dark:bg-primary/40 rounded-tr-xl rounded-l-xl"
+      ? "bg-primary/40 dark:bg-primary/40 rounded-tr-xl rounded-l-xl"
       : "bg-[#F5F5F5] dark:bg-accent rounded-bl-xl rounded-r-xl"
   );
 
   const replyBoxClass = cn(
-    `mb-2 p-2 text-xs rounded-md border-l-4 shadow-md !text-left`,
+    `mb-2 p-2 text-sm rounded-md border-l-4 shadow-md !text-left`,
     isCurrentUser
       ? "bg-primary/20 border-l-primary"
       : "bg-gray-200 dark:bg-secondary border-l-[#CC4A31]"
@@ -68,7 +68,7 @@ const ChatMessageBody = memo(({ message, onReply }: Props) => {
             {/* {Header} */}
 
             <div className="flex items-center gap-2 mb-0.5 pb-1">
-              <span className="text-xs font-semibold">{senderName}</span>
+              <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">{senderName}</span>
               <span className="text-[11px] text-gray-700 dark:text-gray-300">
                 {formatChatTime(message?.createdAt)}
               </span>
