@@ -11,7 +11,7 @@ interface LogoProps {
 
 const Logo = ({
   url = "/",
-  imgClass = "size-[30px]",
+  imgClass = "size-[50px]",
 }: LogoProps) => (
   <Link to={url} className="flex items-center gap-2 w-fit p-1 bg-white rounded-full">
     <img src={logoSvg} alt="Whop" className={cn(imgClass)} />
