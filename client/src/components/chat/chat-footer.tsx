@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { MessageType } from "@/types/chat.type";
-import { useRef, useState } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import { Form, FormField, FormItem } from "../ui/form";
 import { Input } from "../ui/input";
 import ChatReplyBar from "./chat-reply-bar";
 import { useChat } from "@/hooks/use-chat";
+import { useSocket } from "@/hooks/use-socket";
 
 interface Props {
   chatId: string | null;
@@ -28,9 +29,12 @@ const ChatFooter = ({
   });
 
   const { sendMessage, isSendingMsg } = useChat();
+  const { socket } = useSocket();
 
   const [image, setImage] = useState<string | null>(null);
+  const [isTyping, setIsTyping] = useState(false);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const typingTimeoutRef = useRef<number | null>(null);
 
   const form = useForm({
     resolver: zodResolver(messageSchema),
@@ -38,6 +42,52 @@ const ChatFooter = ({
       message: "",
     },
   });
+
+  // Typing indicator functions
+  const startTyping = useCallback(() => {
+    if (!chatId || !socket || isTyping) return;
+    
+    setIsTyping(true);
+    socket.emit("typing:start", chatId);
+  }, [chatId, socket, isTyping]);
+
+  const stopTyping = useCallback(() => {
+    if (!chatId || !socket || !isTyping) return;
+    
+    setIsTyping(false);
+    socket.emit("typing:stop", chatId);
+  }, [chatId, socket, isTyping]);
+
+  const handleTyping = useCallback(() => {
+    if (!chatId || !socket) return;
+
+    // Start typing if not already
+    if (!isTyping) {
+      startTyping();
+    }
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Set timeout to stop typing after 2 seconds of inactivity
+    typingTimeoutRef.current = window.setTimeout(() => {
+      stopTyping();
+    }, 2000);
+  }, [chatId, socket, isTyping, startTyping, stopTyping]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      if (isTyping) {
+        stopTyping();
+      }
+    };
+  }, [isTyping, stopTyping]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -63,6 +113,12 @@ const ChatFooter = ({
       toast.error("Please enter a message or select an image");
       return;
     }
+    
+    // Stop typing when sending message
+    if (isTyping) {
+      stopTyping();
+    }
+    
     const payload = {
       chatId,
       content: values.message,
@@ -145,6 +201,10 @@ const ChatFooter = ({
                     autoComplete="off"
                     placeholder="Type new message"
                     className="min-h-[40px] bg-background"
+                    onChange={(e) => {
+                      field.onChange(e);
+                      handleTyping();
+                    }}
                   />
                 </FormItem>
               )}

@@ -9,23 +9,47 @@ import useChatId from "@/hooks/use-chat-id";
 import { useSocket } from "@/hooks/use-socket";
 import type { MessageType } from "@/types/chat.type";
 import { useEffect, useState } from "react";
+import { UserProfileDialog } from "@/components/user-profile-dialog";
+import { GroupSettingsDialog } from "@/components/group/group-settings-dialog";
+import { ImagePreviewDialog } from "@/components/chat/image-preview-dialog";
 
 const SingleChat = () => {
   const chatId = useChatId();
-  const { fetchSingleChat, isSingleChatLoading, singleChat } = useChat();
+  const { fetchSingleChat, isSingleChatLoading, singleChat, fetchAllUsers, users, markChatAsRead } = useChat();
   const { socket } = useSocket();
   const { user } = useAuth();
 
   const [replyTo, setReplyTo] = useState<MessageType | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
+  const [previewImage, setPreviewImage] = useState<{url: string; name: string} | null>(null);
 
-  const currentUserId = user?._id || null;
+  const handleUserClick = (userId: string) => {
+    setSelectedUserId(userId);
+    setIsProfileOpen(true);
+  };
+
+  const handleImageClick = (imageUrl: string, imageName?: string) => {
+    setPreviewImage({
+      url: imageUrl,
+      name: imageName || "Image"
+    });
+  };
+
+  useEffect(() => {
+    fetchAllUsers();
+  }, [fetchAllUsers]);
+
+  const currentUserId = user?.id || null;
   const chat = singleChat?.chat;
   const messages = singleChat?.messages || [];
 
   useEffect(() => {
     if (!chatId) return;
     fetchSingleChat(chatId);
-  }, [fetchSingleChat, chatId]);
+    markChatAsRead(chatId);
+  }, [chatId, fetchSingleChat, markChatAsRead]);
 
   //Socket Chat room
   useEffect(() => {
@@ -55,7 +79,11 @@ const SingleChat = () => {
 
   return (
     <div className="relative h-svh flex flex-col">
-      <ChatHeader chat={chat} currentUserId={currentUserId} />
+      <ChatHeader 
+        chat={chat} 
+        currentUserId={currentUserId}
+        onGroupSettingsClick={() => setIsGroupSettingsOpen(true)}
+      />
 
       <div className="flex-1 overflow-y-auto bg-background">
         {messages.length === 0 ? (
@@ -64,7 +92,13 @@ const SingleChat = () => {
             description="No messages yet. Send the first message"
           />
         ) : (
-          <ChatBody chatId={chatId} messages={messages} onReply={setReplyTo} />
+          <ChatBody 
+            chatId={chatId} 
+            messages={messages} 
+            onReply={setReplyTo}
+            onUserClick={handleUserClick}
+            onImageClick={handleImageClick}
+          />
         )}
       </div>
 
@@ -73,6 +107,31 @@ const SingleChat = () => {
         chatId={chatId}
         currentUserId={currentUserId}
         onCancelReply={() => setReplyTo(null)}
+      />
+
+      <UserProfileDialog
+        userId={selectedUserId}
+        open={isProfileOpen}
+        onOpenChange={setIsProfileOpen}
+      />
+
+      <GroupSettingsDialog
+        open={isGroupSettingsOpen}
+        onOpenChange={setIsGroupSettingsOpen}
+        chat={chat}
+        availableUsers={users || []}
+        onGroupUpdated={() => {
+          if (chatId) {
+            fetchSingleChat(chatId);
+          }
+        }}
+      />
+
+      <ImagePreviewDialog
+        open={!!previewImage}
+        onOpenChange={(open) => !open && setPreviewImage(null)}
+        imageUrl={previewImage?.url || ""}
+        imageName={previewImage?.name}
       />
     </div>
   );

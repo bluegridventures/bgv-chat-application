@@ -4,28 +4,31 @@ import { isUserOnline } from "@/lib/helper";
 import Logo from "./logo";
 import { PROTECTED_ROUTES } from "@/routes/routes";
 import { Button } from "./ui/button";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, User as UserIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import AvatarWithBadge from "./avatar-with-badge";
+import { useNavigate } from "react-router-dom";
 
 const AsideBar = () => {
   const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
+  const navigate = useNavigate();
 
-  const isOnline = isUserOnline(user?._id);
+  const isOnline = isUserOnline(user?.id);
 
   return (
     <aside
       className="
   top-0 fixed inset-y-0
   w-[50px] left-0 z-[9999]
-  h-svh bg-[#1DAB67] shadow-sm"
+  h-svh bg-card border-r border-border/50 shadow-sm"
     >
       <div
         className="
@@ -89,6 +92,12 @@ const AsideBar = () => {
               align="end"
             >
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate(PROTECTED_ROUTES.ACCOUNT)}>
+                <UserIcon className="mr-2 h-4 w-4" />
+                Profile Settings
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout}>Logout</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

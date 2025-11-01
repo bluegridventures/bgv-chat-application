@@ -1,10 +1,8 @@
-import mongoose from "mongoose";
-import { Env } from "./env.config";
-
+// Database connection is now handled by Supabase
+// This function is kept for compatibility but does nothing
 const connectDatabase = async () => {
   try {
-    await mongoose.connect(Env.MONGO_URI);
-    console.log("Database connected");
+    console.log("Database connection: Using Supabase (no connection needed)");
   } catch (error) {
     console.error("Database connection error:", error);
     process.exit(1);

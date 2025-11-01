@@ -24,8 +24,8 @@ export const getOtherUserAndGroup = (
     };
   }
 
-  const other = chat?.participants.find((p) => p._id !== currentUserId);
-  const isOnline = isUserOnline(other?._id ?? "");
+  const other = chat?.participants.find((p) => p.id !== currentUserId);
+  const isOnline = isUserOnline(other?.id ?? "");
 
   return {
     name: other?.name || "Unknown",

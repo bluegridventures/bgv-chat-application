@@ -21,8 +21,17 @@ passport.use(
     async ({ userId }, done) => {
       try {
         const user = userId && (await findByIdUserService(userId));
-        return done(null, user || false);
+        if (!user) return done(null, false);
+        
+        // Map the user object to match our Supabase schema
+        const userWithId = {
+          ...user,
+          id: user.id || userId // Use the provided userId as fallback
+        };
+        
+        return done(null, userWithId);
       } catch (error) {
+        console.error('Passport JWT error:', error);
         return done(null, false);
       }
     }

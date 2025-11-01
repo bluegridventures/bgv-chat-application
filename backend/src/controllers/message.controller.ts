@@ -6,7 +6,7 @@ import { sendMessageService } from "../services/message.service";
 
 export const sendMessageController = asyncHandler(
   async (req: Request, res: Response) => {
-    const userId = req.user?._id;
+    const userId = req.user?.id;
     const body = sendMessageSchema.parse(req.body);
 
     const result = await sendMessageService(userId, body);

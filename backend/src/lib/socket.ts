@@ -81,6 +81,31 @@ export const initializeSocket = (httpServer: HTTPServer) => {
       }
     });
 
+    // Typing indicator events
+    socket.on("typing:start", async (chatId: string) => {
+      try {
+        await validateChatParticipant(chatId, userId);
+        socket.to(`chat:${chatId}`).emit("typing:start", {
+          userId,
+          chatId,
+        });
+      } catch (error) {
+        console.error("Error in typing:start:", error);
+      }
+    });
+
+    socket.on("typing:stop", async (chatId: string) => {
+      try {
+        await validateChatParticipant(chatId, userId);
+        socket.to(`chat:${chatId}`).emit("typing:stop", {
+          userId,
+          chatId,
+        });
+      } catch (error) {
+        console.error("Error in typing:stop:", error);
+      }
+    });
+
     socket.on("disconnect", () => {
       if (onlineUsers.get(userId) === newSocketId) {
         if (userId) onlineUsers.delete(userId);

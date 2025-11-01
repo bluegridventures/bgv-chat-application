@@ -11,11 +11,17 @@ export type LoginType = {
 };
 
 export interface UserType {
-  _id: string;
+  id: string;
   name: string;
   email: string;
   avatar?: string | null;
+  username?: string | null;
+  bio?: string | null;
+  role?: string | null;
   isAI?: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  is_ai?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+  created_at?: string;
+  updated_at?: string;
 }

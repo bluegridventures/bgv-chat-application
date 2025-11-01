@@ -60,7 +60,7 @@ export const NewChatPopover = memo(() => {
     });
     setIsOpen(false);
     resetState();
-    navigate(`/chat/${response?._id}`);
+    navigate(`/chat/${response?.id}`);
   };
 
   const handleCreateChat = async (userId: string) => {
@@ -72,7 +72,7 @@ export const NewChatPopover = memo(() => {
       });
       setIsOpen(false);
       resetState();
-      navigate(`/chat/${response?._id}`);
+      navigate(`/chat/${response?.id}`);
     } finally {
       setLoadingUserId(null);
       setIsOpen(false);
@@ -85,11 +85,10 @@ export const NewChatPopover = memo(() => {
       <PopoverTrigger asChild>
         <Button
           onClick={() => setIsOpen(true)}
-          variant="ghost"
           size="icon"
-          className="h-8 w-8"
+          className="h-8 w-8 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-sm"
         >
-          <PenBoxIcon className="!h-5 !w-5 !stroke-1" />
+          <PenBoxIcon className="!h-4 !w-4" />
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -112,13 +111,18 @@ export const NewChatPopover = memo(() => {
           </div>
 
           <InputGroup>
-            <InputGroupInput
-              value={isGroupMode ? groupName : ""}
-              onChange={
-                isGroupMode ? (e) => setGroupName(e.target.value) : undefined
-              }
-              placeholder={isGroupMode ? "Enter group name" : "Search name"}
-            />
+            {isGroupMode ? (
+              <InputGroupInput
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                placeholder="Enter group name"
+              />
+            ) : (
+              <InputGroupInput
+                placeholder="Search name"
+                readOnly
+              />
+            )}
             <InputGroupAddon>
               {isGroupMode ? <UsersIcon /> : <Search />}
             </InputGroupAddon>
@@ -144,9 +148,9 @@ export const NewChatPopover = memo(() => {
               />
               {users?.map((user) => (
                 <ChatUserItem
-                  key={user._id}
+                  key={user.id}
                   user={user}
-                  isLoading={loadingUserId === user._id}
+                  isLoading={loadingUserId === user.id}
                   disabled={loadingUserId !== null}
                   onClick={handleCreateChat}
                 />
@@ -155,9 +159,9 @@ export const NewChatPopover = memo(() => {
           ) : (
             users?.map((user) => (
               <GroupUserItem
-                key={user._id}
+                key={user.id}
                 user={user}
-                isSelected={selectedUsers.includes(user._id)}
+                isSelected={selectedUsers.includes(user.id)}
                 onToggle={toggleUserSelection}
               />
             ))
@@ -236,7 +240,7 @@ const ChatUserItem = memo(
     rounded-sm hover:bg-accent
        transition-colors text-left disabled:opacity-50"
       disabled={isLoading || disabled}
-      onClick={() => onClick(user._id)}
+      onClick={() => onClick(user.id)}
     >
       <UserAvatar user={user} />
       {isLoading && <Spinner className="absolute right-2 w-4 h-4 ml-auto" />}
@@ -266,7 +270,7 @@ const GroupUserItem = memo(
       <UserAvatar user={user} />
       <Checkbox
         checked={isSelected}
-        onCheckedChange={() => onToggle(user._id)}
+        onCheckedChange={() => onToggle(user.id)}
       />
     </label>
   )

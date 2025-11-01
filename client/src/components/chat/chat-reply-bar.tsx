@@ -11,7 +11,7 @@ const ChatReplyBar = ({ replyTo, currentUserId, onCancel }: Props) => {
   if (!replyTo) return null;
 
   const senderName =
-    replyTo.sender?._id === currentUserId ? "You" : replyTo.sender?.name;
+    replyTo.sender?.id === currentUserId ? "You" : replyTo.sender?.name;
   return (
     <div
       className="absolute bottom-16 left-0 right-0

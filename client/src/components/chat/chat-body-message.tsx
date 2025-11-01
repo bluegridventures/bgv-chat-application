@@ -10,46 +10,53 @@ import { ReplyIcon } from "lucide-react";
 interface Props {
   message: MessageType;
   onReply: (message: MessageType) => void;
+  onUserClick?: (userId: string) => void;
+  onImageClick?: (imageUrl: string, imageName?: string) => void;
 }
-const ChatMessageBody = memo(({ message, onReply }: Props) => {
+const ChatMessageBody = memo(({ message, onReply, onUserClick, onImageClick }: Props) => {
   const { user } = useAuth();
 
-  const userId = user?._id || null;
-  const isCurrentUser = message.sender?._id === userId;
+  const userId = user?.id || null;
+  const isCurrentUser = message.sender?.id === userId;
   const senderName = isCurrentUser ? "You" : message.sender?.name;
 
   const replySendername =
-    message.replyTo?.sender?._id === userId
+    message.replyTo?.sender?.id === userId
       ? "You"
       : message.replyTo?.sender?.name;
 
   const containerClass = cn(
-    "group flex gap-2 py-3 px-4",
+    "group flex gap-3 py-2 px-4 hover:bg-secondary/20 transition-colors",
     isCurrentUser && "flex-row-reverse text-left"
   );
 
   const contentWrapperClass = cn(
-    "max-w-[70%]  flex flex-col relative",
+    "max-w-[65%] flex flex-col relative",
     isCurrentUser && "items-end"
   );
 
   const messageClass = cn(
-    "min-w-[200px] px-3 py-2 text-sm break-words shadow-sm",
+    "min-w-[200px] px-4 py-2.5 text-sm break-words shadow-sm backdrop-blur-sm",
     isCurrentUser
-      ? "bg-primary/40 dark:bg-primary/40 rounded-tr-xl rounded-l-xl"
-      : "bg-[#F5F5F5] dark:bg-accent rounded-bl-xl rounded-r-xl"
+      ? "bg-primary/90 text-primary-foreground rounded-2xl rounded-tr-md"
+      : "bg-secondary/80 text-foreground rounded-2xl rounded-tl-md"
   );
 
   const replyBoxClass = cn(
-    `mb-2 p-2 text-sm rounded-md border-l-4 shadow-md !text-left`,
+    `mb-2 p-2.5 text-xs rounded-lg border-l-2 backdrop-blur-sm !text-left`,
     isCurrentUser
-      ? "bg-primary/20 border-l-primary"
-      : "bg-gray-200 dark:bg-secondary border-l-[#CC4A31]"
+      ? "bg-primary/20 border-l-primary/50"
+      : "bg-secondary/60 border-l-accent"
   );
   return (
     <div className={containerClass}>
       {!isCurrentUser && (
-        <div className="flex-shrink-0 flex items-start">
+        <div 
+          className="flex-shrink-0 flex items-start cursor-pointer"
+          onClick={() => message.sender?.id && onUserClick?.(message.sender.id)}
+          role="button"
+          tabIndex={0}
+        >
           <AvatarWithBadge
             name={message.sender?.name || "No name"}
             src={message.sender?.avatar || ""}
@@ -67,10 +74,18 @@ const ChatMessageBody = memo(({ message, onReply }: Props) => {
           <div className={messageClass}>
             {/* {Header} */}
 
-            <div className="flex items-center gap-2 mb-0.5 pb-1">
-              <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">{senderName}</span>
-              <span className="text-[11px] text-gray-700 dark:text-gray-300">
-                {formatChatTime(message?.createdAt)}
+            <div className="flex items-center gap-2 mb-1">
+              <span className={cn(
+                "text-xs font-semibold",
+                isCurrentUser ? "text-primary-foreground/90" : "text-foreground"
+              )}>
+                {senderName}
+              </span>
+              <span className={cn(
+                "text-[10px]",
+                isCurrentUser ? "text-primary-foreground/60" : "text-muted-foreground"
+              )}>
+                {formatChatTime(message?.createdAt || message?.created_at || new Date().toISOString())}
               </span>
             </div>
 
@@ -92,8 +107,9 @@ const ChatMessageBody = memo(({ message, onReply }: Props) => {
             {message?.image && (
               <img
                 src={message?.image || ""}
-                alt=""
-                className="rounded-lg max-w-xs"
+                alt="Shared image"
+                className="rounded-lg max-w-xs cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => onImageClick?.(message.image!, `Image from ${senderName}`)}
               />
             )}
 
@@ -102,17 +118,17 @@ const ChatMessageBody = memo(({ message, onReply }: Props) => {
 
           {/* {Reply Icon Button} */}
           <Button
-            variant="outline"
+            variant="ghost"
             size="icon"
             onClick={() => onReply(message)}
             className="flex opacity-0 group-hover:opacity-100
-            transition-opacity rounded-full !size-8
+            transition-all rounded-lg !size-7 hover:bg-secondary/80
             "
           >
             <ReplyIcon
-              size={16}
+              size={14}
               className={cn(
-                "text-gray-500 dark:text-white !stroke-[1.9]",
+                "text-muted-foreground",
                 isCurrentUser && "scale-x-[-1]"
               )}
             />

@@ -10,7 +10,7 @@ export const registerController = asyncHandler(
     const body = registerSchema.parse(req.body);
 
     const user = await registerService(body);
-    const userId = user._id as string;
+    const userId = user.id;
 
     return setJwtAuthCookie({
       res,
@@ -29,7 +29,7 @@ export const loginController = asyncHandler(
     const body = loginSchema.parse(req.body);
 
     const user = await loginService(body);
-    const userId = user._id as string;
+    const userId = user.id;
     return setJwtAuthCookie({
       res,
       userId,

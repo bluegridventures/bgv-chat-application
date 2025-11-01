@@ -1,15 +1,17 @@
 import { getOtherUserAndGroup } from "@/lib/helper";
 import { PROTECTED_ROUTES } from "@/routes/routes";
 import type { ChatType } from "@/types/chat.type";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AvatarWithBadge from "../avatar-with-badge";
+import { Button } from "../ui/button";
 
 interface Props {
   chat: ChatType;
   currentUserId: string | null;
+  onGroupSettingsClick?: () => void;
 }
-const ChatHeader = ({ chat, currentUserId }: Props) => {
+const ChatHeader = ({ chat, currentUserId, onGroupSettingsClick }: Props) => {
   const navigate = useNavigate();
   const { name, subheading, avatar, isOnline, isGroup } = getOtherUserAndGroup(
     chat,
@@ -39,7 +41,7 @@ const ChatHeader = ({ chat, currentUserId }: Props) => {
           isGroup={isGroup}
           isOnline={isOnline}
         />
-        <div className="ml-2">
+        <div className="ml-2 flex-1">
           <h5 className="font-bold capitalize">{name}</h5>
           <p
             className={`text-sm font-bold ${
@@ -49,6 +51,16 @@ const ChatHeader = ({ chat, currentUserId }: Props) => {
             {subheading}
           </p>
         </div>
+        {isGroup && onGroupSettingsClick && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onGroupSettingsClick}
+            className="mr-2"
+          >
+            <Settings className="w-5 h-5" />
+          </Button>
+        )}
       </div>
       {/* <div>
         <div

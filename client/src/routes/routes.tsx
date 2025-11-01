@@ -2,6 +2,7 @@ import SignIn from "@/pages/auth/sign-in";
 import SignUp from "@/pages/auth/sign-up";
 import Chat from "@/pages/chat";
 import SingleChat from "@/pages/chat/chatId";
+import MyAccount from "@/pages/account";
 
 export const AUTH_ROUTES = {
   SIGN_IN: "/",
@@ -11,6 +12,7 @@ export const AUTH_ROUTES = {
 export const PROTECTED_ROUTES = {
   CHAT: "/chat",
   SINGLE_CHAT: "/chat/:chatId",
+  ACCOUNT: "/account",
 };
 
 export const authRoutesPaths = [
@@ -32,6 +34,10 @@ export const protectedRoutesPaths = [
   {
     path: PROTECTED_ROUTES.SINGLE_CHAT,
     element: <SingleChat />,
+  },
+  {
+    path: PROTECTED_ROUTES.ACCOUNT,
+    element: <MyAccount />,
   },
 ];
 

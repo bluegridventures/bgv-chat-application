@@ -1,26 +1,40 @@
 import type { UserType } from "./auth.type";
 
 export type ChatType = {
-  _id: string;
+  id: string;
   lastMessage: MessageType;
   participants: UserType[];
   isGroup: boolean;
-  isAiChat: boolean;
-  createdBy: string;
+  is_group?: boolean;
+  isAiChat?: boolean;
+  createdBy?: string;
+  created_by?: string;
   groupName?: string;
-  createdAt: string;
-  updatedAt: string;
+  group_name?: string;
+  groupDescription?: string;
+  group_description?: string;
+  groupAvatar?: string;
+  group_avatar?: string;
+  groupAdminId?: string;
+  group_admin_id?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type MessageType = {
-  _id: string;
+  id: string;
   content: string | null;
   image: string | null;
   sender: UserType | null;
   replyTo: MessageType | null;
-  chatId: string;
-  createdAt: string;
-  updatedAt: string;
+  chatId?: string;
+  chat_id?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  created_at?: string;
+  updated_at?: string;
   //only frontend
   status?: string;
   streaming?: boolean;
