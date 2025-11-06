@@ -5,12 +5,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
-import { Paperclip, Send, X } from "lucide-react";
+import { Paperclip, Send, X, Mic, Square } from "lucide-react";
 import { Form, FormField, FormItem } from "../ui/form";
 import { Input } from "../ui/input";
 import ChatReplyBar from "./chat-reply-bar";
 import { useChat } from "@/hooks/use-chat";
 import { useSocket } from "@/hooks/use-socket";
+import VoiceNotePlayer from "@/components/media/voice-note-player";
 
 interface Props {
   chatId: string | null;
@@ -35,6 +36,14 @@ const ChatFooter = ({
   const [isTyping, setIsTyping] = useState(false);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const typingTimeoutRef = useRef<number | null>(null);
+
+  // Audio recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const [audioDataUrl, setAudioDataUrl] = useState<string | null>(null);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const recordingIntervalRef = useRef<number | null>(null);
 
   const form = useForm({
     resolver: zodResolver(messageSchema),
@@ -107,10 +116,79 @@ const ChatFooter = ({
     if (imageInputRef.current) imageInputRef.current.value = "";
   };
 
+  // Audio recording handlers
+  const startRecording = async () => {
+    try {
+      if (!("MediaRecorder" in window)) {
+        toast.error("Voice recording is not supported in this browser");
+        return;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const reader = new FileReader();
+        reader.onloadend = () => setAudioDataUrl(reader.result as string);
+        reader.readAsDataURL(blob);
+        // stop all tracks
+        stream.getTracks().forEach((t) => t.stop());
+        if (recordingIntervalRef.current) {
+          clearInterval(recordingIntervalRef.current);
+          recordingIntervalRef.current = null;
+        }
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsRecording(true);
+      setRecordingSeconds(0);
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+      }
+      recordingIntervalRef.current = window.setInterval(() => {
+        setRecordingSeconds((s) => s + 1);
+      }, 1000);
+    } catch (err: any) {
+      toast.error(err?.message || "Unable to start recording");
+    }
+  };
+
+  const stopRecording = () => {
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current);
+      recordingIntervalRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+  };
+
+  const cancelRecording = () => {
+    try {
+      if (isRecording) {
+        stopRecording();
+      }
+    } finally {
+      setAudioDataUrl(null);
+      audioChunksRef.current = [];
+      setRecordingSeconds(0);
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+        recordingIntervalRef.current = null;
+      }
+    }
+  };
+
   const onSubmit = (values: { message?: string }) => {
     if (isSendingMsg) return;
-    if (!values.message?.trim() && !image) {
-      toast.error("Please enter a message or select an image");
+    if (!values.message?.trim() && !image && !audioDataUrl) {
+      toast.error("Please enter a message, select an image, or record a voice note");
       return;
     }
     
@@ -123,6 +201,7 @@ const ChatFooter = ({
       chatId,
       content: values.message,
       image: image || undefined,
+      audio: audioDataUrl || undefined,
       replyTo: replyTo,
     };
     //Send Message
@@ -130,6 +209,7 @@ const ChatFooter = ({
 
     onCancelReply();
     handleRemoveImage();
+    setAudioDataUrl(null);
     form.reset();
   };
   return (
@@ -140,6 +220,55 @@ const ChatFooter = ({
        bg-card border-t border-border py-4
       "
       >
+        {isRecording && (
+          <div className="max-w-6xl mx-auto px-8.5 mb-2">
+            <div className="flex items-center gap-3 p-2 rounded-lg border border-destructive/30 bg-destructive/10">
+              <span className="inline-flex items-center gap-2 text-destructive font-medium text-sm">
+                <span className="h-2.5 w-2.5 rounded-full bg-destructive animate-pulse" />
+                Recording {`${Math.floor(recordingSeconds / 60)}:${String(recordingSeconds % 60).padStart(2, "0")}`}
+              </span>
+              <div className="ml-auto flex items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="rounded-full"
+                  onClick={stopRecording}
+                  title="Stop recording"
+                >
+                  <Square className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full"
+                  onClick={cancelRecording}
+                  title="Cancel"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+        {audioDataUrl && !isSendingMsg && (
+          <div className="max-w-6xl mx-auto px-8.5 mb-2">
+            <div className="flex items-center gap-2">
+              <VoiceNotePlayer src={audioDataUrl} />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="rounded-full"
+                onClick={cancelRecording}
+                title="Remove voice note"
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
         {image && !isSendingMsg && (
           <div className="max-w-6xl mx-auto px-8.5">
             <div className="relative w-fit">
@@ -189,6 +318,17 @@ const ChatFooter = ({
                 ref={imageInputRef}
                 onChange={handleImageChange}
               />
+              <Button
+                type="button"
+                variant={isRecording ? "destructive" : "outline"}
+                size="icon"
+                disabled={isSendingMsg}
+                className="rounded-full"
+                onClick={() => (isRecording ? stopRecording() : startRecording())}
+                title={isRecording ? "Stop recording" : "Record voice note"}
+              >
+                {isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              </Button>
             </div>
             <FormField
               control={form.control}

@@ -5,9 +5,10 @@ export const sendMessageSchema = z
     chatId: z.string().trim().min(1),
     content: z.string().trim().optional(),
     image: z.string().trim().optional(),
+    audio: z.string().trim().optional(),
     replyToId: z.string().trim().optional(),
   })
-  .refine((data) => data.content || data.image, {
-    message: "Either content or image must be provided",
+  .refine((data) => data.content || data.image || data.audio, {
+    message: "Either content, image or audio must be provided",
     path: ["content"],
   });

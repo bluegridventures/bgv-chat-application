@@ -37,6 +37,7 @@ const ChatListItem = ({ chat, currentUserId, onClick, onUserClick, onDelete }: P
           : "You were added"
         : "Send a message";
     }
+    if (lastMessage.audio) return "🎤 Voice note";
     if (lastMessage.image) return "📷 Photo";
 
     if (isGroup && lastMessage.sender) {
@@ -44,10 +45,10 @@ const ChatListItem = ({ chat, currentUserId, onClick, onUserClick, onDelete }: P
         lastMessage.sender.id === currentUserId
           ? "You"
           : lastMessage.sender.name
-      }: ${lastMessage.content}`;
+      }: ${lastMessage.audio ? "🎤 Voice note" : lastMessage.image ? "📷 Photo" : lastMessage.content}`;
     }
 
-    return lastMessage.content;
+    return lastMessage.audio ? "🎤 Voice note" : lastMessage.image ? "📷 Photo" : lastMessage.content;
   };
 
   const handleAvatarClick = (e: React.MouseEvent) => {

@@ -13,14 +13,17 @@ export const getOtherUserAndGroup = (
   chat: ChatType,
   currentUserId: string | null
 ) => {
-  const isGroup = chat?.isGroup;
+  const isGroup = chat?.isGroup || chat?.is_group || false;
 
   if (isGroup) {
+    const name = chat.groupName || chat.group_name || "Unnamed Group";
+    const avatar = chat.groupAvatar || chat.group_avatar || "";
+    const membersCount = chat.participants?.length || 0;
     return {
-      name: chat.groupName || "Unnamed Group",
-      subheading: `${chat.participants.length} members`,
-      avatar: "",
-      isGroup,
+      name,
+      subheading: `${membersCount} members`,
+      avatar,
+      isGroup: true,
     };
   }
 
@@ -33,7 +36,7 @@ export const getOtherUserAndGroup = (
     avatar: other?.avatar || "",
     isGroup: false,
     isOnline,
-    isAI: other?.isAI || false,
+    isAI: (other as any)?.isAI || (other as any)?.is_ai || false,
   };
 };
 

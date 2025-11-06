@@ -27,6 +27,7 @@ export type MessageType = {
   id: string;
   content: string | null;
   image: string | null;
+  audio: string | null;
   sender: UserType | null;
   replyTo: MessageType | null;
   chatId?: string;
@@ -51,5 +52,6 @@ export type CreateMessageType = {
   chatId: string | null;
   content?: string;
   image?: string;
+  audio?: string;
   replyTo?: MessageType | null;
 };

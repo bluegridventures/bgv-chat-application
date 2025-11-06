@@ -13,6 +13,7 @@ import type { UserType } from "../../types/auth.type";
 import AvatarWithBadge from "../avatar-with-badge";
 import { Checkbox } from "../ui/checkbox";
 import { useNavigate } from "react-router-dom";
+import { CreateGroupDialog } from "@/components/group/create-group-dialog";
 
 export const NewChatPopover = memo(() => {
   const navigate = useNavigate();
@@ -23,6 +24,7 @@ export const NewChatPopover = memo(() => {
   const [isGroupMode, setIsGroupMode] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
 
   const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
 
@@ -144,7 +146,7 @@ export const NewChatPopover = memo(() => {
             <>
               <NewGroupItem
                 disabled={isCreatingChat}
-                onClick={() => setIsGroupMode(true)}
+                onClick={() => setIsCreateGroupOpen(true)}
               />
               {users?.map((user) => (
                 <ChatUserItem
@@ -185,6 +187,21 @@ export const NewChatPopover = memo(() => {
           </div>
         )}
       </PopoverContent>
+
+      {/* WhatsApp-style Create Group Dialog */}
+      <CreateGroupDialog
+        open={isCreateGroupOpen}
+        onOpenChange={setIsCreateGroupOpen}
+        users={(users as UserType[]) || []}
+        onGroupCreated={(chatId) => {
+          setIsCreateGroupOpen(false);
+          setIsOpen(false);
+          resetState();
+          if (chatId) {
+            navigate(`/chat/${chatId}`);
+          }
+        }}
+      />
     </Popover>
   );
 });

@@ -154,6 +154,7 @@ const createNewChat = async (
     .insert({
       is_group: isGroup,
       group_name: isGroup ? groupName : null,
+      group_admin_id: isGroup ? userId : null,
       created_by: userId
     })
     .select()

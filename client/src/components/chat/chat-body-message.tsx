@@ -6,6 +6,7 @@ import AvatarWithBadge from "../avatar-with-badge";
 import { formatChatTime } from "@/lib/helper";
 import { Button } from "../ui/button";
 import { ReplyIcon } from "lucide-react";
+import VoiceNotePlayer from "@/components/media/voice-note-player";
 
 interface Props {
   message: MessageType;
@@ -99,7 +100,11 @@ const ChatMessageBody = memo(({ message, onReply, onUserClick, onImageClick }: P
                 "
                 >
                   {message?.replyTo?.content ||
-                    (message?.replyTo?.image ? "📷 Photo" : "")}
+                    (message?.replyTo?.audio
+                      ? "🎤 Voice note"
+                      : message?.replyTo?.image
+                      ? "📷 Photo"
+                      : "")}
                 </p>
               </div>
             )}
@@ -110,6 +115,14 @@ const ChatMessageBody = memo(({ message, onReply, onUserClick, onImageClick }: P
                 alt="Shared image"
                 className="rounded-lg max-w-xs cursor-pointer hover:opacity-90 transition-opacity"
                 onClick={() => onImageClick?.(message.image!, `Image from ${senderName}`)}
+              />
+            )}
+
+            {message?.audio && (
+              <VoiceNotePlayer
+                src={message.audio || ""}
+                compact
+                className="mt-1 max-w-xs"
               />
             )}
 

@@ -122,7 +122,7 @@ export const useChat = create<ChatState>()((set, get) => ({
 
   sendMessage: async (payload: CreateMessageType) => {
     set({ isSendingMsg: true });
-    const { chatId, replyTo, content, image } = payload;
+    const { chatId, replyTo, content, image, audio } = payload;
     const { user } = useAuth.getState();
 
     if (!chatId || !user?.id) return;
@@ -134,6 +134,7 @@ export const useChat = create<ChatState>()((set, get) => ({
       chatId,
       content: content || "",
       image: image || null,
+      audio: audio || null,
       sender: user,
       replyTo: replyTo || null,
       createdAt: new Date().toISOString(),
@@ -160,6 +161,7 @@ export const useChat = create<ChatState>()((set, get) => ({
         chatId,
         content,
         image,
+        audio,
         replyToId: replyTo?.id,
       });
       const { userMessage } = data;

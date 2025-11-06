@@ -28,7 +28,9 @@ const ChatReplyBar = ({ replyTo, currentUserId, onCancel }: Props) => {
       >
         <div className="flex-1">
           <h5 className="font-medium">{senderName}</h5>
-          {replyTo?.image ? (
+          {replyTo?.audio ? (
+            <p className="text-muted-foreground">🎤 Voice note</p>
+          ) : replyTo?.image ? (
             <p className="text-muted-foreground">📷 Photo</p>
           ) : (
             <p

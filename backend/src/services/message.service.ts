@@ -12,10 +12,11 @@ export const sendMessageService = async (
     chatId: string;
     content?: string;
     image?: string;
+    audio?: string;
     replyToId?: string;
   }
 ) => {
-  const { chatId, content, image, replyToId } = body;
+  const { chatId, content, image, audio, replyToId } = body;
 
   // Check if user is a participant in this chat
   const { data: participation } = await supabase
@@ -44,11 +45,21 @@ export const sendMessageService = async (
   }
 
   let imageUrl;
+  let audioUrl;
 
   if (image) {
     // Upload the image to cloudinary
     const uploadRes = await cloudinary.uploader.upload(image);
     imageUrl = uploadRes.secure_url;
+  }
+
+  if (audio) {
+    // Upload the audio/voice note to cloudinary
+    const uploadRes = await cloudinary.uploader.upload(audio, {
+      resource_type: 'auto',
+      folder: 'chat-app/audio'
+    });
+    audioUrl = uploadRes.secure_url;
   }
 
   // Create new message
@@ -59,6 +70,7 @@ export const sendMessageService = async (
       sender_id: userId,
       content: content || null,
       image: imageUrl || null,
+      audio: audioUrl || null,
       reply_to_id: replyToId || null,
     })
     .select(`

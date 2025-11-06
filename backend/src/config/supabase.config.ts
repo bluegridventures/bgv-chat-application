@@ -56,6 +56,7 @@ export interface Message {
   sender_id: string;
   content?: string | null;
   image?: string | null;
+  audio?: string | null;
   reply_to_id?: string | null;
   created_at: string;
   updated_at: string;

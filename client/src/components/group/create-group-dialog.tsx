@@ -21,7 +21,7 @@ interface CreateGroupDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   users: UserType[];
-  onGroupCreated?: () => void;
+  onGroupCreated?: (chatId: string) => void;
 }
 
 export const CreateGroupDialog = ({
@@ -80,7 +80,7 @@ export const CreateGroupDialog = ({
     setIsLoading(true);
 
     try {
-      await API.post("/group/create", {
+      const { data } = await API.post("/group/create", {
         groupName: formData.groupName,
         groupDescription: formData.groupDescription,
         groupAvatar: groupAvatar,
@@ -90,7 +90,11 @@ export const CreateGroupDialog = ({
       toast.success("Group created successfully!");
       onOpenChange(false);
       resetForm();
-      onGroupCreated?.();
+      if (data?.chat?.id) {
+        onGroupCreated?.(data.chat.id);
+      } else {
+        onGroupCreated?.("");
+      }
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to create group");
     } finally {
