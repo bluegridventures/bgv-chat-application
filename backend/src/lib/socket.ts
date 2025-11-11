@@ -106,6 +106,168 @@ export const initializeSocket = (httpServer: HTTPServer) => {
       }
     });
 
+    socket.on(
+      "call:invite",
+      async (payload: { chatId: string; toUserId: string; type: "audio" | "video" }) => {
+        try {
+          if (!payload?.chatId || !payload?.toUserId) return;
+          await validateChatParticipant(payload.chatId, userId);
+          await validateChatParticipant(payload.chatId, payload.toUserId);
+          io?.to(`user:${payload.toUserId}`).emit("call:incoming", {
+            chatId: payload.chatId,
+            fromUserId: userId,
+            type: payload.type,
+            timestamp: Date.now(),
+          });
+        } catch (error) {
+          console.error("Error in call:invite:", error);
+        }
+      }
+    );
+
+    socket.on(
+      "call:offer",
+      async (payload: { chatId: string; toUserId: string; sdp: any }) => {
+        try {
+          if (!payload?.chatId || !payload?.toUserId || !payload?.sdp) return;
+          await validateChatParticipant(payload.chatId, userId);
+          await validateChatParticipant(payload.chatId, payload.toUserId);
+          io?.to(`user:${payload.toUserId}`).emit("call:offer", {
+            chatId: payload.chatId,
+            fromUserId: userId,
+            sdp: payload.sdp,
+          });
+        } catch (error) {
+          console.error("Error in call:offer:", error);
+        }
+      }
+    );
+
+    socket.on(
+      "call:answer",
+      async (payload: { chatId: string; toUserId: string; sdp: any }) => {
+        try {
+          if (!payload?.chatId || !payload?.toUserId || !payload?.sdp) return;
+          await validateChatParticipant(payload.chatId, userId);
+          await validateChatParticipant(payload.chatId, payload.toUserId);
+          io?.to(`user:${payload.toUserId}`).emit("call:answer", {
+            chatId: payload.chatId,
+            fromUserId: userId,
+            sdp: payload.sdp,
+          });
+        } catch (error) {
+          console.error("Error in call:answer:", error);
+        }
+      }
+    );
+
+    socket.on(
+      "call:candidate",
+      async (payload: { chatId: string; toUserId: string; candidate: any }) => {
+        try {
+          if (!payload?.chatId || !payload?.toUserId || !payload?.candidate) return;
+          await validateChatParticipant(payload.chatId, userId);
+          await validateChatParticipant(payload.chatId, payload.toUserId);
+          io?.to(`user:${payload.toUserId}`).emit("call:candidate", {
+            chatId: payload.chatId,
+            fromUserId: userId,
+            candidate: payload.candidate,
+          });
+        } catch (error) {
+          console.error("Error in call:candidate:", error);
+        }
+      }
+    );
+
+    socket.on(
+      "call:accept",
+      async (payload: { chatId: string; toUserId: string }) => {
+        try {
+          if (!payload?.chatId || !payload?.toUserId) return;
+          await validateChatParticipant(payload.chatId, userId);
+          await validateChatParticipant(payload.chatId, payload.toUserId);
+          io?.to(`user:${payload.toUserId}`).emit("call:accept", {
+            chatId: payload.chatId,
+            fromUserId: userId,
+          });
+        } catch (error) {
+          console.error("Error in call:accept:", error);
+        }
+      }
+    );
+
+    socket.on(
+      "call:reject",
+      async (payload: { chatId: string; toUserId: string; reason?: string }) => {
+        try {
+          if (!payload?.chatId || !payload?.toUserId) return;
+          await validateChatParticipant(payload.chatId, userId);
+          await validateChatParticipant(payload.chatId, payload.toUserId);
+          io?.to(`user:${payload.toUserId}`).emit("call:reject", {
+            chatId: payload.chatId,
+            fromUserId: userId,
+            reason: payload.reason,
+          });
+        } catch (error) {
+          console.error("Error in call:reject:", error);
+        }
+      }
+    );
+
+    socket.on(
+      "call:end",
+      async (payload: { chatId: string; toUserId: string; reason?: string }) => {
+        try {
+          if (!payload?.chatId || !payload?.toUserId) return;
+          await validateChatParticipant(payload.chatId, userId);
+          await validateChatParticipant(payload.chatId, payload.toUserId);
+          io?.to(`user:${payload.toUserId}`).emit("call:end", {
+            chatId: payload.chatId,
+            fromUserId: userId,
+            reason: payload.reason,
+          });
+        } catch (error) {
+          console.error("Error in call:end:", error);
+        }
+      }
+    );
+
+    // Group call announce events
+    socket.on(
+      "group:call:started",
+      async (payload: { chatId: string; type: "audio" | "video" }) => {
+        try {
+          if (!payload?.chatId) return;
+          await validateChatParticipant(payload.chatId, userId);
+          socket.to(`chat:${payload.chatId}`).emit("group:call:started", {
+            chatId: payload.chatId,
+            type: payload.type,
+            startedBy: userId,
+            timestamp: Date.now(),
+          });
+        } catch (error) {
+          console.error("Error in group:call:started:", error);
+        }
+      }
+    );
+
+    socket.on(
+      "group:call:ended",
+      async (payload: { chatId: string }) => {
+        try {
+          if (!payload?.chatId) return;
+          await validateChatParticipant(payload.chatId, userId);
+          socket.to(`chat:${payload.chatId}`).emit("group:call:ended", {
+            chatId: payload.chatId,
+            endedBy: userId,
+            timestamp: Date.now(),
+          });
+        } catch (error) {
+          console.error("Error in group:call:ended:", error);
+        }
+      }
+    );
+
     socket.on("disconnect", () => {
       if (onlineUsers.get(userId) === newSocketId) {
         if (userId) onlineUsers.delete(userId);

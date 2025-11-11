@@ -290,7 +290,7 @@ export const validateChatParticipant = async (
     .select('id')
     .eq('chat_id', chatId)
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
     
   if (participationError) {
     console.error('Participation check error:', participationError);

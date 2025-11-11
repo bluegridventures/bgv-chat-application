@@ -1,10 +1,12 @@
 import { getOtherUserAndGroup } from "@/lib/helper";
 import { PROTECTED_ROUTES } from "@/routes/routes";
 import type { ChatType } from "@/types/chat.type";
-import { ChevronLeft, Settings } from "lucide-react";
+import { ChevronLeft, Settings, Phone, Video } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AvatarWithBadge from "../avatar-with-badge";
 import { Button } from "../ui/button";
+import { useCalls } from "@/hooks/use-calls";
+import { useGroupCall } from "@/hooks/use-group-call";
 
 interface Props {
   chat: ChatType;
@@ -17,6 +19,12 @@ const ChatHeader = ({ chat, currentUserId, onGroupSettingsClick }: Props) => {
     chat,
     currentUserId
   );
+  const { startCall, inCall } = useCalls();
+  const { startGroupCall } = useGroupCall();
+
+  const otherUser = !isGroup
+    ? chat.participants?.find((p) => p.id !== currentUserId)
+    : null;
 
   return (
     <div
@@ -51,15 +59,55 @@ const ChatHeader = ({ chat, currentUserId, onGroupSettingsClick }: Props) => {
             {subheading}
           </p>
         </div>
-        {isGroup && onGroupSettingsClick && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onGroupSettingsClick}
-            className="mr-2"
-          >
-            <Settings className="w-5 h-5" />
-          </Button>
+        {!isGroup && otherUser?.id && (
+          <div className="flex items-center gap-1 mr-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => !inCall && startCall(chat.id, otherUser.id, "audio")}
+              className="mr-1"
+            >
+              <Phone className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => !inCall && startCall(chat.id, otherUser.id, "video")}
+              className="mr-2"
+            >
+              <Video className="w-5 h-5" />
+            </Button>
+          </div>
+        )}
+        {isGroup && (
+          <div className="flex items-center gap-1 mr-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => startGroupCall(chat.id, "audio")}
+              className="mr-1"
+            >
+              <Phone className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => startGroupCall(chat.id, "video")}
+              className="mr-2"
+            >
+              <Video className="w-5 h-5" />
+            </Button>
+            {onGroupSettingsClick && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onGroupSettingsClick}
+                className="mr-2"
+              >
+                <Settings className="w-5 h-5" />
+              </Button>
+            )}
+          </div>
         )}
       </div>
       {/* <div>
