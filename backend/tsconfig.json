@@ -9,5 +9,10 @@
     "skipLibCheck": true
   },
   "include": ["src", "src/@types/**/*.d.ts"],
-  "exclude": ["node_modules", "dist", "test"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test",
+    "src/config/supabase.config.ts"
+  ]
 }
