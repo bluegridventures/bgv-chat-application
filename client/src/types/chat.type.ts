@@ -1,5 +1,13 @@
 import type { UserType } from "./auth.type";
 
+export type MessageReactionType = {
+  id: string;
+  emoji: string;
+  userId?: string;
+  user_id?: string;
+  user?: UserType | null;
+};
+
 export type ChatType = {
   id: string;
   lastMessage: MessageType;
@@ -30,6 +38,7 @@ export type MessageType = {
   audio: string | null;
   sender: UserType | null;
   replyTo: MessageType | null;
+   reactions?: MessageReactionType[];
   chatId?: string;
   chat_id?: string;
   createdAt?: string;

@@ -12,3 +12,20 @@ export const sendMessageSchema = z
     message: "Either content, image or audio must be provided",
     path: ["content"],
   });
+
+export const reactMessageSchema = z.object({
+  chatId: z.string().trim().min(1),
+  messageId: z.string().trim().min(1),
+  emoji: z.string().trim().min(1).max(20),
+});
+
+export const editMessageSchema = z.object({
+  chatId: z.string().trim().min(1),
+  messageId: z.string().trim().min(1),
+  content: z.string().trim().min(1),
+});
+
+export const deleteMessageSchema = z.object({
+  chatId: z.string().trim().min(1),
+  messageId: z.string().trim().min(1),
+});

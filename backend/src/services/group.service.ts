@@ -1,4 +1,4 @@
-import { supabase } from "../config/supabase.config";
+import { prisma } from "../config/prisma.config";
 import cloudinary from "../config/cloudinary.config";
 import { BadRequestException, ForbiddenException, NotFoundException } from "../utils/app-error";
 
@@ -15,6 +15,19 @@ interface UpdateGroupData {
   groupDescription?: string;
   groupAvatar?: string;
 }
+
+const selectUserWithoutPassword = {
+  id: true,
+  name: true,
+  email: true,
+  avatar: true,
+  username: true,
+  bio: true,
+  role: true,
+  is_ai: true,
+  created_at: true,
+  updated_at: true,
+};
 
 export const createGroupService = async (data: CreateGroupData) => {
   const { groupName, groupDescription, groupAvatar, participantIds, createdBy } = data;
@@ -50,59 +63,48 @@ export const createGroupService = async (data: CreateGroupData) => {
     }
   }
 
-  // Create group chat
-  const { data: chat, error: chatError } = await supabase
-    .from('chats')
-    .insert({
-      is_group: true,
-      group_name: groupName,
-      group_description: groupDescription || null,
-      group_avatar: avatarUrl || null,
-      group_admin_id: createdBy,
-      created_by: createdBy,
-    })
-    .select()
-    .single();
+  try {
+    const chat = await prisma.chat.create({
+      data: {
+        is_group: true,
+        group_name: groupName,
+        group_description: groupDescription || null,
+        group_avatar: avatarUrl || null,
+        group_admin_id: createdBy,
+        created_by: createdBy,
+      },
+    });
 
-  if (chatError || !chat) {
-    console.error('Error creating group chat:', chatError);
-    throw new Error('Failed to create group');
+    await prisma.chatParticipant.createMany({
+      data: allParticipants.map((userId) => ({
+        chat_id: chat.id,
+        user_id: userId,
+      })),
+      skipDuplicates: true,
+    });
+
+    const completeChat = await prisma.chat.findUnique({
+      where: { id: chat.id },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: selectUserWithoutPassword,
+            },
+          },
+        },
+      },
+    });
+
+    if (!completeChat) {
+      throw new Error("Failed to fetch created group");
+    }
+
+    return completeChat;
+  } catch (error) {
+    console.error("Error creating group:", error);
+    throw new Error("Failed to create group");
   }
-
-  // Add participants
-  const participantsData = allParticipants.map(userId => ({
-    chat_id: chat.id,
-    user_id: userId,
-  }));
-
-  const { error: participantsError } = await supabase
-    .from('chat_participants')
-    .insert(participantsData);
-
-  if (participantsError) {
-    console.error('Error adding participants:', participantsError);
-    // Rollback: delete the chat
-    await supabase.from('chats').delete().eq('id', chat.id);
-    throw new Error('Failed to add participants to group');
-  }
-
-  // Fetch complete group data with participants
-  const { data: completeChat, error: fetchError } = await supabase
-    .from('chats')
-    .select(`
-      *,
-      participants:chat_participants(
-        user:users(id, name, email, avatar, username, bio, role, is_ai)
-      )
-    `)
-    .eq('id', chat.id)
-    .single();
-
-  if (fetchError || !completeChat) {
-    throw new Error('Failed to fetch created group');
-  }
-
-  return completeChat;
 };
 
 export const updateGroupService = async (
@@ -110,14 +112,9 @@ export const updateGroupService = async (
   userId: string,
   data: UpdateGroupData
 ) => {
-  // Check if chat exists and is a group
-  const { data: chat, error: chatError } = await supabase
-    .from('chats')
-    .select('*')
-    .eq('id', chatId)
-    .single();
+  const chat = await prisma.chat.findUnique({ where: { id: chatId } });
 
-  if (chatError || !chat) {
+  if (!chat) {
     throw new NotFoundException('Group not found');
   }
 
@@ -125,7 +122,6 @@ export const updateGroupService = async (
     throw new BadRequestException('This is not a group chat');
   }
 
-  // Check if user is admin
   if (chat.group_admin_id !== userId) {
     throw new ForbiddenException('Only group admin can update group details');
   }
@@ -149,31 +145,25 @@ export const updateGroupService = async (
     }
   }
 
-  // Update group
-  const updateData: any = {
-    updated_at: new Date().toISOString()
-  };
+  const updateData: any = {};
 
   if (groupName !== undefined) updateData.group_name = groupName;
   if (groupDescription !== undefined) updateData.group_description = groupDescription;
   if (avatarUrl && avatarUrl !== groupAvatar) updateData.group_avatar = avatarUrl;
 
-  const { data: updatedChat, error: updateError } = await supabase
-    .from('chats')
-    .update(updateData)
-    .eq('id', chatId)
-    .select(`
-      *,
-      participants:chat_participants(
-        user:users(id, name, email, avatar, username, bio, role, is_ai)
-      )
-    `)
-    .single();
-
-  if (updateError || !updatedChat) {
-    console.error('Error updating group:', updateError);
-    throw new Error('Failed to update group');
-  }
+  const updatedChat = await prisma.chat.update({
+    where: { id: chatId },
+    data: updateData,
+    include: {
+      participants: {
+        include: {
+          user: {
+            select: selectUserWithoutPassword,
+          },
+        },
+      },
+    },
+  });
 
   return updatedChat;
 };
@@ -183,14 +173,9 @@ export const addGroupMemberService = async (
   userId: string,
   newMemberId: string
 ) => {
-  // Check if chat exists and is a group
-  const { data: chat, error: chatError } = await supabase
-    .from('chats')
-    .select('*')
-    .eq('id', chatId)
-    .single();
+  const chat = await prisma.chat.findUnique({ where: { id: chatId } });
 
-  if (chatError || !chat) {
+  if (!chat) {
     throw new NotFoundException('Group not found');
   }
 
@@ -198,49 +183,43 @@ export const addGroupMemberService = async (
     throw new BadRequestException('This is not a group chat');
   }
 
-  // Check if user is admin
   if (chat.group_admin_id !== userId) {
     throw new ForbiddenException('Only group admin can add members');
   }
 
-  // Check if new member already exists
-  const { data: existingMember } = await supabase
-    .from('chat_participants')
-    .select('*')
-    .eq('chat_id', chatId)
-    .eq('user_id', newMemberId)
-    .single();
+  const existingMember = await prisma.chatParticipant.findFirst({
+    where: {
+      chat_id: chatId,
+      user_id: newMemberId,
+    },
+    select: { id: true },
+  });
 
   if (existingMember) {
     throw new BadRequestException('User is already a member of this group');
   }
 
-  // Add new member
-  const { error: addError } = await supabase
-    .from('chat_participants')
-    .insert({
+  await prisma.chatParticipant.create({
+    data: {
       chat_id: chatId,
       user_id: newMemberId,
-    });
+    },
+  });
 
-  if (addError) {
-    console.error('Error adding member:', addError);
-    throw new Error('Failed to add member to group');
-  }
+  const updatedChat = await prisma.chat.findUnique({
+    where: { id: chatId },
+    include: {
+      participants: {
+        include: {
+          user: {
+            select: selectUserWithoutPassword,
+          },
+        },
+      },
+    },
+  });
 
-  // Fetch updated group
-  const { data: updatedChat, error: fetchError } = await supabase
-    .from('chats')
-    .select(`
-      *,
-      participants:chat_participants(
-        user:users(id, name, email, avatar, username, bio, role, is_ai)
-      )
-    `)
-    .eq('id', chatId)
-    .single();
-
-  if (fetchError || !updatedChat) {
+  if (!updatedChat) {
     throw new Error('Failed to fetch updated group');
   }
 
@@ -252,14 +231,9 @@ export const removeGroupMemberService = async (
   userId: string,
   memberIdToRemove: string
 ) => {
-  // Check if chat exists and is a group
-  const { data: chat, error: chatError } = await supabase
-    .from('chats')
-    .select('*')
-    .eq('id', chatId)
-    .single();
+  const chat = await prisma.chat.findUnique({ where: { id: chatId } });
 
-  if (chatError || !chat) {
+  if (!chat) {
     throw new NotFoundException('Group not found');
   }
 
@@ -267,41 +241,35 @@ export const removeGroupMemberService = async (
     throw new BadRequestException('This is not a group chat');
   }
 
-  // Check if user is admin
   if (chat.group_admin_id !== userId) {
     throw new ForbiddenException('Only group admin can remove members');
   }
 
-  // Cannot remove admin
   if (memberIdToRemove === chat.group_admin_id) {
     throw new BadRequestException('Cannot remove group admin');
   }
 
-  // Remove member
-  const { error: removeError } = await supabase
-    .from('chat_participants')
-    .delete()
-    .eq('chat_id', chatId)
-    .eq('user_id', memberIdToRemove);
+  await prisma.chatParticipant.deleteMany({
+    where: {
+      chat_id: chatId,
+      user_id: memberIdToRemove,
+    },
+  });
 
-  if (removeError) {
-    console.error('Error removing member:', removeError);
-    throw new Error('Failed to remove member from group');
-  }
+  const updatedChat = await prisma.chat.findUnique({
+    where: { id: chatId },
+    include: {
+      participants: {
+        include: {
+          user: {
+            select: selectUserWithoutPassword,
+          },
+        },
+      },
+    },
+  });
 
-  // Fetch updated group
-  const { data: updatedChat, error: fetchError } = await supabase
-    .from('chats')
-    .select(`
-      *,
-      participants:chat_participants(
-        user:users(id, name, email, avatar, username, bio, role, is_ai)
-      )
-    `)
-    .eq('id', chatId)
-    .single();
-
-  if (fetchError || !updatedChat) {
+  if (!updatedChat) {
     throw new Error('Failed to fetch updated group');
   }
 
@@ -309,14 +277,9 @@ export const removeGroupMemberService = async (
 };
 
 export const leaveGroupService = async (chatId: string, userId: string) => {
-  // Check if chat exists and is a group
-  const { data: chat, error: chatError } = await supabase
-    .from('chats')
-    .select('*')
-    .eq('id', chatId)
-    .single();
+  const chat = await prisma.chat.findUnique({ where: { id: chatId } });
 
-  if (chatError || !chat) {
+  if (!chat) {
     throw new NotFoundException('Group not found');
   }
 
@@ -324,22 +287,16 @@ export const leaveGroupService = async (chatId: string, userId: string) => {
     throw new BadRequestException('This is not a group chat');
   }
 
-  // Admin cannot leave (must transfer admin first)
   if (chat.group_admin_id === userId) {
     throw new BadRequestException('Admin must transfer admin rights before leaving');
   }
 
-  // Remove user from group
-  const { error: removeError } = await supabase
-    .from('chat_participants')
-    .delete()
-    .eq('chat_id', chatId)
-    .eq('user_id', userId);
-
-  if (removeError) {
-    console.error('Error leaving group:', removeError);
-    throw new Error('Failed to leave group');
-  }
+  await prisma.chatParticipant.deleteMany({
+    where: {
+      chat_id: chatId,
+      user_id: userId,
+    },
+  });
 
   return { message: 'Successfully left the group' };
 };

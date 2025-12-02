@@ -66,7 +66,7 @@ export const ImagePreviewDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
+      <DialogContent showCloseButton={false} className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
         <DialogHeader className="p-4 pb-2">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-lg font-semibold truncate">

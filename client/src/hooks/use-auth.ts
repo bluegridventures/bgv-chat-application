@@ -31,6 +31,14 @@ export const useAuth = create<AuthState>()((set) => ({
     try {
       const response = await API.post("/auth/register", data);
       set({ user: response.data.user });
+      // Dev-only: mint header token for this tab
+      if (import.meta.env.MODE === "development") {
+        try {
+          const dev = await API.post("/auth/dev-token", { email: data.email, password: data.password });
+          const token = dev?.data?.token as string | undefined;
+          if (token) sessionStorage.setItem("DEV_ACCESS_TOKEN", token);
+        } catch {}
+      }
       useSocket.getState().connectSocket();
       toast.success("Register successfully");
     } catch (err: any) {
@@ -44,6 +52,14 @@ export const useAuth = create<AuthState>()((set) => ({
     try {
       const response = await API.post("/auth/login", data);
       set({ user: response.data.user });
+      // Dev-only: mint header token for this tab
+      if (import.meta.env.MODE === "development") {
+        try {
+          const dev = await API.post("/auth/dev-token", { email: data.email, password: data.password });
+          const token = dev?.data?.token as string | undefined;
+          if (token) sessionStorage.setItem("DEV_ACCESS_TOKEN", token);
+        } catch {}
+      }
       useSocket.getState().connectSocket();
       toast.success("Login successfully");
     } catch (err: any) {
@@ -56,6 +72,8 @@ export const useAuth = create<AuthState>()((set) => ({
     try {
       await API.post("/auth/logout");
       set({ user: null });
+      // Dev-only: clear header token
+      try { sessionStorage.removeItem("DEV_ACCESS_TOKEN"); } catch {}
       useSocket.getState().disconnectSocket();
       toast.success("Logout successfully");
     } catch (err: any) {

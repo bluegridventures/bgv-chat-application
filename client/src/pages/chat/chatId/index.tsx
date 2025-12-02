@@ -15,7 +15,7 @@ import { ImagePreviewDialog } from "@/components/chat/image-preview-dialog";
 
 const SingleChat = () => {
   const chatId = useChatId();
-  const { fetchSingleChat, isSingleChatLoading, singleChat, fetchAllUsers, users, markChatAsRead } = useChat();
+  const { fetchSingleChat, isSingleChatLoading, singleChat, fetchAllUsers, users, markChatAsRead, setActiveChat } = useChat();
   const { socket } = useSocket();
   const { user } = useAuth();
 
@@ -48,8 +48,18 @@ const SingleChat = () => {
   useEffect(() => {
     if (!chatId) return;
     fetchSingleChat(chatId);
+  }, [chatId, fetchSingleChat]);
+
+  // Track which chat is currently open and clear its unread count
+  useEffect(() => {
+    if (!chatId) return;
+    setActiveChat(chatId);
     markChatAsRead(chatId);
-  }, [chatId, fetchSingleChat, markChatAsRead]);
+
+    return () => {
+      setActiveChat(null);
+    };
+  }, [chatId, setActiveChat, markChatAsRead]);
 
   //Socket Chat room
   useEffect(() => {
@@ -85,7 +95,7 @@ const SingleChat = () => {
         onGroupSettingsClick={() => setIsGroupSettingsOpen(true)}
       />
 
-      <div className="flex-1 overflow-y-auto bg-background">
+      <div className="flex-1 overflow-y-auto bg-background no-scrollbar">
         {messages.length === 0 ? (
           <EmptyState
             title="Start a conversation"

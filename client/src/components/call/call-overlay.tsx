@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Mic, MicOff, PhoneOff, Video, VideoOff } from "lucide-react";
+import { Mic, MicOff, PhoneOff, Video, VideoOff, RefreshCcw } from "lucide-react";
 import { useCalls } from "@/hooks/use-calls";
+import { useChat } from "@/hooks/use-chat";
 import AvatarWithBadge from "@/components/avatar-with-badge";
 
 const CallOverlay = () => {
@@ -15,10 +16,20 @@ const CallOverlay = () => {
     endCall,
     toggleMute,
     toggleCamera,
+    switchCamera,
+    currentPeerUserId,
   } = useCalls();
+
+  const { users } = useChat();
 
   const localRef = useRef<HTMLVideoElement | null>(null);
   const remoteRef = useRef<HTMLVideoElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const remoteUser = users.find((u) => u.id === currentPeerUserId);
+  const remoteName = remoteUser?.name || "Unknown user";
+
+  const isVideo = callType === "video";
 
   useEffect(() => {
     if (localRef.current && localStream) {
@@ -32,9 +43,13 @@ const CallOverlay = () => {
     }
   }, [remoteStream]);
 
-  if (!inCall) return null;
+  useEffect(() => {
+    if (!isVideo && audioRef.current && remoteStream) {
+      audioRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream, isVideo]);
 
-  const isVideo = callType === "video";
+  if (!inCall) return null;
 
   return (
     <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-[1000] flex flex-col">
@@ -63,9 +78,10 @@ const CallOverlay = () => {
         ) : (
           <div className="flex flex-col items-center gap-4 text-center">
             <div className="rounded-full bg-secondary size-28 flex items-center justify-center">
-              <AvatarWithBadge name="Voice" />
+              <AvatarWithBadge name={remoteName} />
             </div>
-            <div className="text-sm text-muted-foreground">Voice call in progress…</div>
+            <div className="text-sm text-muted-foreground">Voice call with {remoteName}…</div>
+            <audio ref={audioRef} autoPlay />
           </div>
         )}
       </div>
@@ -75,11 +91,26 @@ const CallOverlay = () => {
           {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
         </Button>
         {isVideo && (
-          <Button variant={isCameraOff ? "secondary" : "default"} onClick={toggleCamera} className="rounded-full size-12" aria-label={isCameraOff ? "Turn camera on" : "Turn camera off"}>
-            {isCameraOff ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
-          </Button>
+          <>
+            <Button
+              variant={isCameraOff ? "secondary" : "default"}
+              onClick={toggleCamera}
+              className="rounded-full size-12"
+              aria-label={isCameraOff ? "Turn camera on" : "Turn camera off"}
+            >
+              {isCameraOff ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => void switchCamera()}
+              className="rounded-full size-12"
+              aria-label="Switch camera"
+            >
+              <RefreshCcw className="h-5 w-5" />
+            </Button>
+          </>
         )}
-        <Button variant="destructive" onClick={endCall} className="rounded-full size-12" aria-label="End call">
+        <Button variant="destructive" onClick={() => endCall()} className="rounded-full size-12" aria-label="End call">
           <PhoneOff className="h-5 w-5" />
         </Button>
       </div>

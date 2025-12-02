@@ -28,10 +28,19 @@ app.use(
   cors({
     origin: Env.FRONTEND_ORIGIN,
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "x-dev-access-token",
+      "authorization",
+    ],
   })
 );
 
 app.use(passport.initialize());
+
+const soundPath = path.resolve(__dirname, "./sound");
+app.use("/sound", express.static(soundPath));
 
 app.get(
   "/health",

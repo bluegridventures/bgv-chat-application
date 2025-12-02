@@ -33,39 +33,40 @@ const ChatHeader = ({ chat, currentUserId, onGroupSettingsClick }: Props) => {
     bg-card px-2 z-50
     "
     >
-      <div className="h-14 px-4 flex items-center">
-        <div>
-          <ChevronLeft
-            className="w-8 h-8 inline-block lg:hidden
+      <div className="h-14 px-4 flex items-center justify-between w-full">
+        <div className="flex items-center">
+          <div>
+            <ChevronLeft
+              className="w-8 h-8 inline-block lg:hidden
           text-muted-foreground cursor-pointer
           mr-2
           "
-            onClick={() => navigate(PROTECTED_ROUTES.CHAT)}
+              onClick={() => navigate(PROTECTED_ROUTES.CHAT)}
+            />
+          </div>
+          <AvatarWithBadge
+            name={name}
+            src={avatar}
+            isGroup={isGroup}
+            isOnline={isOnline}
           />
-        </div>
-        <AvatarWithBadge
-          name={name}
-          src={avatar}
-          isGroup={isGroup}
-          isOnline={isOnline}
-        />
-        <div className="ml-2 flex-1">
-          <h5 className="font-bold capitalize">{name}</h5>
-          <p
-            className={`text-sm font-bold ${
-              isOnline ? "text-green-500" : "text-muted-foreground"
-            }`}
-          >
-            {subheading}
-          </p>
+          <div className="ml-2">
+            <h5 className="font-bold capitalize">{name}</h5>
+            <p
+              className={`text-sm font-bold ${
+                isOnline ? "text-green-500" : "text-muted-foreground"
+              }`}
+            >
+              {subheading}
+            </p>
+          </div>
         </div>
         {!isGroup && otherUser?.id && (
-          <div className="flex items-center gap-1 mr-2">
+          <div className="flex items-center gap-2 mr-2">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => !inCall && startCall(chat.id, otherUser.id, "audio")}
-              className="mr-1"
             >
               <Phone className="w-5 h-5" />
             </Button>
@@ -73,19 +74,17 @@ const ChatHeader = ({ chat, currentUserId, onGroupSettingsClick }: Props) => {
               variant="ghost"
               size="icon"
               onClick={() => !inCall && startCall(chat.id, otherUser.id, "video")}
-              className="mr-2"
             >
               <Video className="w-5 h-5" />
             </Button>
           </div>
         )}
         {isGroup && (
-          <div className="flex items-center gap-1 mr-2">
+          <div className="flex items-center gap-2 mr-2">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => startGroupCall(chat.id, "audio")}
-              className="mr-1"
             >
               <Phone className="w-5 h-5" />
             </Button>
@@ -93,7 +92,6 @@ const ChatHeader = ({ chat, currentUserId, onGroupSettingsClick }: Props) => {
               variant="ghost"
               size="icon"
               onClick={() => startGroupCall(chat.id, "video")}
-              className="mr-2"
             >
               <Video className="w-5 h-5" />
             </Button>
@@ -102,7 +100,6 @@ const ChatHeader = ({ chat, currentUserId, onGroupSettingsClick }: Props) => {
                 variant="ghost"
                 size="icon"
                 onClick={onGroupSettingsClick}
-                className="mr-2"
               >
                 <Settings className="w-5 h-5" />
               </Button>

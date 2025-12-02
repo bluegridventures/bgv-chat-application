@@ -2,6 +2,7 @@ import { Server as HTTPServer } from "http";
 import jwt from "jsonwebtoken";
 import { Server, type Socket } from "socket.io";
 import { Env } from "../config/env.config";
+import { prisma } from "../config/prisma.config";
 import { validateChatParticipant } from "../services/chat.service";
 
 interface AuthenticatedSocket extends Socket {
@@ -23,11 +24,31 @@ export const initializeSocket = (httpServer: HTTPServer) => {
 
   io.use(async (socket: AuthenticatedSocket, next) => {
     try {
-      const rawCookie = socket.handshake.headers.cookie;
+      const rawCookie = socket.handshake.headers.cookie || "";
+      let token: string | undefined;
 
-      if (!rawCookie) return next(new Error("Unauthorized"));
+      // Dev-only: allow token via handshake auth payload
+      if (Env.NODE_ENV !== "production") {
+        const authToken = (socket.handshake as any)?.auth?.token as string | undefined;
+        if (authToken && typeof authToken === "string" && authToken.length > 0) {
+          token = authToken;
+        }
+      }
 
-      const token = rawCookie?.split("=")?.[1]?.trim();
+      if (!token) {
+        const cookiePairs = rawCookie.split(";").map((c) => c.trim());
+        for (const pair of cookiePairs) {
+          const idx = pair.indexOf("=");
+          if (idx === -1) continue;
+          const key = pair.slice(0, idx);
+          const val = pair.slice(idx + 1);
+          if (key === "accessToken") {
+            token = val;
+            break;
+          }
+        }
+      }
+
       if (!token) return next(new Error("Unauthorized"));
 
       const decodedToken = jwt.verify(token, Env.JWT_SECRET) as {
@@ -113,9 +134,26 @@ export const initializeSocket = (httpServer: HTTPServer) => {
           if (!payload?.chatId || !payload?.toUserId) return;
           await validateChatParticipant(payload.chatId, userId);
           await validateChatParticipant(payload.chatId, payload.toUserId);
+
+          let fromUserName: string | undefined;
+          let fromUserAvatar: string | null | undefined;
+
+          try {
+            const caller = await prisma.user.findUnique({
+              where: { id: userId },
+              select: { name: true, avatar: true },
+            });
+            fromUserName = caller?.name;
+            fromUserAvatar = caller?.avatar ?? null;
+          } catch (err) {
+            console.error("Error fetching caller info for call:invite:", err);
+          }
+
           io?.to(`user:${payload.toUserId}`).emit("call:incoming", {
             chatId: payload.chatId,
             fromUserId: userId,
+            fromUserName,
+            fromUserAvatar,
             type: payload.type,
             timestamp: Date.now(),
           });
@@ -296,6 +334,22 @@ export const emitNewChatToParticpants = (
   for (const participantId of participantIds) {
     io.to(`user:${participantId}`).emit("chat:new", chat);
   }
+};
+
+export const emitMessageUpdatedToChatRoom = (
+  chatId: string,
+  message: any
+) => {
+  const io = getIO();
+  io.to(`chat:${chatId}`).emit("message:updated", message);
+};
+
+export const emitMessageDeletedToChatRoom = (
+  chatId: string,
+  messageId: string
+) => {
+  const io = getIO();
+  io.to(`chat:${chatId}`).emit("message:deleted", { chatId, messageId });
 };
 
 export const emitNewMessageToChatRoom = (

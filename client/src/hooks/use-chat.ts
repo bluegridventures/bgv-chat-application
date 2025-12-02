@@ -20,6 +20,9 @@ interface ChatState {
     messages: MessageType[];
   } | null;
 
+  // Which chat is currently open in the UI
+  activeChatId: string | null;
+
   currentAIStreamId: string | null;
   typingUsers: Map<string, string[]>; // chatId -> array of user names
   unreadCounts: Map<string, number>; // chatId -> unread message count
@@ -39,6 +42,8 @@ interface ChatState {
   addNewChat: (newChat: ChatType) => void;
   updateChatLastMessage: (chatId: string, lastMessage: MessageType) => void;
   addNewMessage: (chatId: string, message: MessageType) => void;
+  updateMessageInChat: (chatId: string, message: MessageType) => void;
+  deleteMessageInChat: (chatId: string, messageId: string) => void;
   deleteChat: (chatId: string) => Promise<void>;
   
   // Typing indicators
@@ -50,12 +55,15 @@ interface ChatState {
   incrementUnreadCount: (chatId: string) => void;
   markChatAsRead: (chatId: string) => void;
   getUnreadCount: (chatId: string) => number;
+  setActiveChat: (chatId: string | null) => void;
 }
 
 export const useChat = create<ChatState>()((set, get) => ({
   chats: [],
   users: [],
   singleChat: null,
+
+  activeChatId: null,
 
   isChatsLoading: false,
   isUsersLoading: false,
@@ -71,7 +79,17 @@ export const useChat = create<ChatState>()((set, get) => ({
     set({ isUsersLoading: true });
     try {
       const { data } = await API.get("/user/all");
-      set({ users: data.users });
+      const seen = new Set<string>();
+      const deduped = Array.isArray(data?.users)
+        ? data.users.filter((u: any) => {
+            const id = u?.id as string | undefined;
+            if (!id) return true;
+            if (seen.has(id)) return false;
+            seen.add(id);
+            return true;
+          })
+        : [];
+      set({ users: deduped });
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to fetch users");
     } finally {
@@ -79,11 +97,43 @@ export const useChat = create<ChatState>()((set, get) => ({
     }
   },
 
+  updateMessageInChat: (chatId, message) => {
+    const chat = get().singleChat;
+    if (chat?.chat.id !== chatId) return;
+    set({
+      singleChat: {
+        chat: chat.chat,
+        messages: chat.messages.map((m) => (m.id === message.id ? message : m)),
+      },
+    });
+  },
+
+  deleteMessageInChat: (chatId, messageId) => {
+    const chat = get().singleChat;
+    if (chat?.chat.id !== chatId) return;
+    set({
+      singleChat: {
+        chat: chat.chat,
+        messages: chat.messages.filter((m) => m.id !== messageId),
+      },
+    });
+  },
+
   fetchChats: async () => {
     set({ isChatsLoading: true });
     try {
       const { data } = await API.get("/chat/all");
-      set({ chats: data.chats });
+      const seen = new Set<string>();
+      const deduped = Array.isArray(data?.chats)
+        ? data.chats.filter((c: any) => {
+            const id = c?.id as string | undefined;
+            if (!id) return true;
+            if (seen.has(id)) return false;
+            seen.add(id);
+            return true;
+          })
+        : [];
+      set({ chats: deduped });
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to fetch chats");
     } finally {
@@ -112,7 +162,17 @@ export const useChat = create<ChatState>()((set, get) => ({
     set({ isSingleChatLoading: true });
     try {
       const { data } = await API.get(`/chat/${chatId}`);
-      set({ singleChat: data });
+      const seen = new Set<string>();
+      const deduped = Array.isArray(data?.messages)
+        ? data.messages.filter((m: any) => {
+            const id = m?.id as string | undefined;
+            if (!id) return true;
+            if (seen.has(id)) return false;
+            seen.add(id);
+            return true;
+          })
+        : [];
+      set({ singleChat: { chat: data.chat, messages: deduped } });
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to fetch chats");
     } finally {
@@ -121,7 +181,6 @@ export const useChat = create<ChatState>()((set, get) => ({
   },
 
   sendMessage: async (payload: CreateMessageType) => {
-    set({ isSendingMsg: true });
     const { chatId, replyTo, content, image, audio } = payload;
     const { user } = useAuth.getState();
 
@@ -168,19 +227,23 @@ export const useChat = create<ChatState>()((set, get) => ({
       //replace the temp user message
       set((state) => {
         if (!state.singleChat) return state;
+        const replaced = state.singleChat.messages.map((msg) =>
+          msg.id === tempUserId ? userMessage : msg
+        );
+        const deduped = replaced.filter(
+          (m, idx, self) => self.findIndex((x) => x.id === m.id) === idx
+        );
         return {
           singleChat: {
             ...state.singleChat,
-            messages: state.singleChat.messages.map((msg) =>
-              msg.id === tempUserId ? userMessage : msg
-            ),
+            messages: deduped,
           },
         };
       });
+      // Current user has replied in this chat, reset unread count
+      get().markChatAsRead(chatId);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to send message");
-    } finally {
-      set({ isSendingMsg: false });
     }
   },
 
@@ -203,37 +266,47 @@ export const useChat = create<ChatState>()((set, get) => ({
   },
 
   updateChatLastMessage: (chatId, lastMessage) => {
+    const { user } = useAuth.getState();
+    const currentUserId = user?.id;
+
     set((state) => {
       const chat = state.chats.find((c) => c.id === chatId);
       if (!chat) return state;
+      const isFromOtherUser =
+        lastMessage.sender?.id && lastMessage.sender.id !== currentUserId;
+      const isChatOpen = state.activeChatId === chatId;
+
+      // Only increment unread count for messages from others
+      // when the chat is NOT currently open.
+      const newUnreadCounts = new Map(state.unreadCounts);
+      if (isFromOtherUser && !isChatOpen) {
+        const currentCount = newUnreadCounts.get(chatId) || 0;
+        newUnreadCounts.set(chatId, currentCount + 1);
+      }
+
       return {
         chats: [
           { ...chat, lastMessage },
           ...state.chats.filter((c) => c.id !== chatId),
         ],
+        unreadCounts: newUnreadCounts,
       };
     });
   },
 
   addNewMessage: (chatId, message) => {
-    const { user } = useAuth.getState();
-    const currentUserId = user?.id;
     const chat = get().singleChat;
-    
-    // Add message to current chat if it matches
-    if (chat?.chat.id === chatId) {
-      set({
-        singleChat: {
-          chat: chat.chat,
-          messages: [...chat.messages, message],
-        },
-      });
-    }
-    
-    // Increment unread count if message is from another user and not viewing this chat
-    if (message.sender?.id !== currentUserId && chat?.chat.id !== chatId) {
-      get().incrementUnreadCount(chatId);
-    }
+
+    if (chat?.chat.id !== chatId) return;
+
+    set({
+      singleChat: {
+        chat: chat.chat,
+        messages: chat.messages.some((m) => m.id === message.id)
+          ? chat.messages.map((m) => (m.id === message.id ? message : m))
+          : [...chat.messages, message],
+      },
+    });
   },
 
   deleteChat: async (chatId: string) => {
@@ -309,5 +382,9 @@ export const useChat = create<ChatState>()((set, get) => ({
 
   getUnreadCount: (chatId: string) => {
     return get().unreadCounts.get(chatId) || 0;
+  },
+
+  setActiveChat: (chatId: string | null) => {
+    set({ activeChatId: chatId });
   },
 }));

@@ -1,33 +1,50 @@
-import { supabase, UserWithoutPassword } from "../config/supabase.config";
+import { prisma } from "../config/prisma.config";
+import type { UserWithoutPassword } from "../types/db.types";
 import cloudinary from "../config/cloudinary.config";
 import { BadRequestException } from "../utils/app-error";
 
-export const findByIdUserService = async (userId: string): Promise<UserWithoutPassword | null> => {
-  const { data: user, error } = await supabase
-    .from('users')
-    .select('id, name, email, avatar, username, bio, role, is_ai, created_at, updated_at')
-    .eq('id', userId)
-    .single();
-    
-  if (error || !user) {
-    return null;
-  }
-  
-  return user;
+export const findByIdUserService = async (
+  userId: string
+): Promise<UserWithoutPassword | null> => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      avatar: true,
+      username: true,
+      bio: true,
+      role: true,
+      is_ai: true,
+      created_at: true,
+      updated_at: true,
+    },
+  });
+
+  return user ?? null;
 };
 
-export const getUsersService = async (userId: string): Promise<UserWithoutPassword[]> => {
-  const { data: users, error } = await supabase
-    .from('users')
-    .select('id, name, email, avatar, username, bio, role, is_ai, created_at, updated_at')
-    .neq('id', userId);
-    
-  if (error) {
-    console.error('Error fetching users:', error);
-    return [];
-  }
-  
-  return users || [];
+export const getUsersService = async (
+  userId: string
+): Promise<UserWithoutPassword[]> => {
+  const users = await prisma.user.findMany({
+    where: { id: { not: userId } },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      avatar: true,
+      username: true,
+      bio: true,
+      role: true,
+      is_ai: true,
+      created_at: true,
+      updated_at: true,
+    },
+  });
+
+  return users;
 };
 
 export const updateProfileService = async (
@@ -42,42 +59,36 @@ export const updateProfileService = async (
 ): Promise<UserWithoutPassword> => {
   const { name, username, bio, role, avatar } = body;
 
-  // Check if username is already taken by another user
   if (username) {
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('id')
-      .eq('username', username)
-      .neq('id', userId)
-      .single();
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        username,
+        id: { not: userId },
+      },
+      select: { id: true },
+    });
 
     if (existingUser) {
-      throw new BadRequestException('Username is already taken');
+      throw new BadRequestException("Username is already taken");
     }
   }
 
   let avatarUrl = avatar;
 
-  // Upload avatar to Cloudinary if provided
-  if (avatar && avatar.startsWith('data:image')) {
+  if (avatar && avatar.startsWith("data:image")) {
     try {
       const uploadRes = await cloudinary.uploader.upload(avatar, {
-        folder: 'chat-app/avatars',
-        transformation: [
-          { width: 400, height: 400, crop: 'fill', gravity: 'face' }
-        ]
+        folder: "chat-app/avatars",
+        transformation: [{ width: 400, height: 400, crop: "fill", gravity: "face" }],
       });
       avatarUrl = uploadRes.secure_url;
     } catch (error) {
-      console.error('Error uploading avatar:', error);
-      throw new Error('Failed to upload avatar');
+      console.error("Error uploading avatar:", error);
+      throw new Error("Failed to upload avatar");
     }
   }
 
-  // Update user profile
-  const updateData: any = {
-    updated_at: new Date().toISOString()
-  };
+  const updateData: any = {};
 
   if (name !== undefined) updateData.name = name;
   if (username !== undefined) updateData.username = username;
@@ -85,17 +96,22 @@ export const updateProfileService = async (
   if (role !== undefined) updateData.role = role;
   if (avatarUrl && avatarUrl !== avatar) updateData.avatar = avatarUrl;
 
-  const { data: updatedUser, error } = await supabase
-    .from('users')
-    .update(updateData)
-    .eq('id', userId)
-    .select('id, name, email, avatar, username, bio, role, is_ai, created_at, updated_at')
-    .single();
-
-  if (error || !updatedUser) {
-    console.error('Error updating profile:', error);
-    throw new Error('Failed to update profile');
-  }
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: updateData,
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      avatar: true,
+      username: true,
+      bio: true,
+      role: true,
+      is_ai: true,
+      created_at: true,
+      updated_at: true,
+    },
+  });
 
   return updatedUser;
 };

@@ -1,10 +1,25 @@
 import cloudinary from "../config/cloudinary.config";
-import { supabase, Message, MessageWithSender, Chat } from "../config/supabase.config";
+import { prisma } from "../config/prisma.config";
 import { BadRequestException, NotFoundException } from "../utils/app-error";
 import {
   emitLastMessageToParticipants,
+  emitMessageDeletedToChatRoom,
+  emitMessageUpdatedToChatRoom,
   emitNewMessageToChatRoom,
 } from "../lib/socket";
+
+const selectUserWithoutPassword = {
+  id: true,
+  name: true,
+  email: true,
+  avatar: true,
+  username: true,
+  bio: true,
+  role: true,
+  is_ai: true,
+  created_at: true,
+  updated_at: true,
+};
 
 export const sendMessageService = async (
   userId: string,
@@ -18,27 +33,26 @@ export const sendMessageService = async (
 ) => {
   const { chatId, content, image, audio, replyToId } = body;
 
-  // Check if user is a participant in this chat
-  const { data: participation } = await supabase
-    .from('chat_participants')
-    .select('id')
-    .eq('chat_id', chatId)
-    .eq('user_id', userId)
-    .single();
-    
+  const participation = await prisma.chatParticipant.findFirst({
+    where: {
+      chat_id: chatId,
+      user_id: userId,
+    },
+  });
+
   if (!participation) {
     throw new BadRequestException("Chat not found or unauthorized");
   }
 
-  // Validate reply message if provided
   if (replyToId) {
-    const { data: replyMessage } = await supabase
-      .from('messages')
-      .select('id')
-      .eq('id', replyToId)
-      .eq('chat_id', chatId)
-      .single();
-      
+    const replyMessage = await prisma.message.findFirst({
+      where: {
+        id: replyToId,
+        chat_id: chatId,
+      },
+      select: { id: true },
+    });
+
     if (!replyMessage) {
       throw new NotFoundException("Reply message not found");
     }
@@ -54,7 +68,6 @@ export const sendMessageService = async (
   }
 
   if (audio) {
-    // Upload the audio/voice note to cloudinary
     const uploadRes = await cloudinary.uploader.upload(audio, {
       resource_type: 'auto',
       folder: 'chat-app/audio'
@@ -62,72 +75,233 @@ export const sendMessageService = async (
     audioUrl = uploadRes.secure_url;
   }
 
-  // Create new message
-  const { data: newMessage, error: messageError } = await supabase
-    .from('messages')
-    .insert({
+  const newMessage = await prisma.message.create({
+    data: {
       chat_id: chatId,
       sender_id: userId,
       content: content || null,
       image: imageUrl || null,
       audio: audioUrl || null,
       reply_to_id: replyToId || null,
-    })
-    .select(`
-      *,
-      sender:users!messages_sender_id_fkey(
-        id,
-        name,
-        email,
-        avatar,
-        is_ai,
-        created_at,
-        updated_at
-      )
-    `)
-    .single();
+    },
+    include: {
+      sender: {
+        select: selectUserWithoutPassword,
+      },
+      replyTo: {
+        include: {
+          sender: {
+            select: selectUserWithoutPassword,
+          },
+        },
+      },
+    },
+  });
 
-  if (messageError || !newMessage) {
-    console.error('Error creating message:', messageError);
-    throw new Error('Failed to create message');
-  }
-
-  // Update chat's last message
-  const { error: chatUpdateError } = await supabase
-    .from('chats')
-    .update({ 
+  await prisma.chat.update({
+    where: { id: chatId },
+    data: {
       last_message_id: newMessage.id,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', chatId);
+      updated_at: new Date(),
+    },
+  });
 
-  if (chatUpdateError) {
-    console.error('Error updating chat last message:', chatUpdateError);
-  }
+  const chat = await prisma.chat.findUnique({
+    where: { id: chatId },
+  });
 
-  // Get chat details for websocket
-  const { data: chat } = await supabase
-    .from('chats')
-    .select('*')
-    .eq('id', chatId)
-    .single();
+  const participants = await prisma.chatParticipant.findMany({
+    where: { chat_id: chatId },
+    select: { user_id: true },
+  });
 
-  // Get all participant IDs for websocket
-  const { data: participants } = await supabase
-    .from('chat_participants')
-    .select('user_id')
-    .eq('chat_id', chatId);
+  const allParticipantIds = participants.map(
+    (p: { user_id: string }) => p.user_id
+  );
 
-  const allParticipantIds = participants?.map((p: any) => p.user_id) || [];
-
-  // Websocket emit the new message to the chat room
   emitNewMessageToChatRoom(userId, chatId, newMessage);
 
-  // Websocket emit the last message to members (personal room user)
   emitLastMessageToParticipants(allParticipantIds, chatId, newMessage);
 
   return {
     userMessage: newMessage,
     chat,
   };
+};
+
+export const reactToMessageService = async (
+  userId: string,
+  body: { chatId: string; messageId: string; emoji: string }
+) => {
+  const { chatId, messageId, emoji } = body;
+
+  const participation = await prisma.chatParticipant.findFirst({
+    where: { chat_id: chatId, user_id: userId },
+  });
+
+  if (!participation) {
+    throw new BadRequestException("Chat not found or unauthorized");
+  }
+
+  const message = await prisma.message.findFirst({
+    where: { id: messageId, chat_id: chatId },
+    select: { id: true },
+  });
+
+  if (!message) {
+    throw new NotFoundException("Message not found");
+  }
+
+  const existing = await prisma.messageReaction.findFirst({
+    where: {
+      message_id: messageId,
+      user_id: userId,
+    },
+  });
+
+  if (existing && existing.emoji === emoji) {
+    await prisma.messageReaction.delete({ where: { id: existing.id } });
+  } else if (existing) {
+    await prisma.messageReaction.update({
+      where: { id: existing.id },
+      data: { emoji },
+    });
+  } else {
+    await prisma.messageReaction.create({
+      data: {
+        message_id: messageId,
+        user_id: userId,
+        emoji,
+      },
+    });
+  }
+
+  const updatedMessage = await prisma.message.findUnique({
+    where: { id: messageId },
+    include: {
+      sender: {
+        select: selectUserWithoutPassword,
+      },
+      replyTo: {
+        include: {
+          sender: {
+            select: selectUserWithoutPassword,
+          },
+        },
+      },
+      reactions: {
+        include: {
+          user: {
+            select: selectUserWithoutPassword,
+          },
+        },
+      },
+    },
+  });
+
+  if (updatedMessage) {
+    emitMessageUpdatedToChatRoom(chatId, updatedMessage);
+  }
+
+  return { updatedMessage };
+};
+
+export const editMessageService = async (
+  userId: string,
+  body: { chatId: string; messageId: string; content: string }
+) => {
+  const { chatId, messageId, content } = body;
+
+  const message = await prisma.message.findUnique({ where: { id: messageId } });
+
+  if (!message || message.chat_id !== chatId) {
+    throw new NotFoundException("Message not found");
+  }
+
+  if (message.sender_id !== userId) {
+    throw new BadRequestException("You can only edit your own messages");
+  }
+
+  const updated = await prisma.message.update({
+    where: { id: messageId },
+    data: { content },
+    include: {
+      sender: {
+        select: selectUserWithoutPassword,
+      },
+      replyTo: {
+        include: {
+          sender: {
+            select: selectUserWithoutPassword,
+          },
+        },
+      },
+      reactions: {
+        include: {
+          user: {
+            select: selectUserWithoutPassword,
+          },
+        },
+      },
+    },
+  });
+
+  emitMessageUpdatedToChatRoom(chatId, updated);
+
+  return { updatedMessage: updated };
+};
+
+export const deleteMessageService = async (
+  userId: string,
+  body: { chatId: string; messageId: string }
+) => {
+  const { chatId, messageId } = body;
+
+  const message = await prisma.message.findUnique({ where: { id: messageId } });
+
+  if (!message || message.chat_id !== chatId) {
+    throw new NotFoundException("Message not found");
+  }
+
+  if (message.sender_id !== userId) {
+    throw new BadRequestException("You can only delete your own messages");
+  }
+
+  const chat = await prisma.chat.findUnique({ where: { id: chatId } });
+
+  await prisma.messageReaction.deleteMany({ where: { message_id: messageId } });
+  await prisma.message.delete({ where: { id: messageId } });
+
+  if (chat?.last_message_id === messageId) {
+    const last = await prisma.message.findFirst({
+      where: { chat_id: chatId },
+      orderBy: { created_at: "desc" },
+      include: {
+        sender: {
+          select: selectUserWithoutPassword,
+        },
+      },
+    });
+
+    await prisma.chat.update({
+      where: { id: chatId },
+      data: {
+        last_message_id: last ? last.id : null,
+        updated_at: new Date(),
+      },
+    });
+
+    if (last) {
+      const participants = await prisma.chatParticipant.findMany({
+        where: { chat_id: chatId },
+        select: { user_id: true },
+      });
+      const allParticipantIds = participants.map((p: { user_id: string }) => p.user_id);
+      emitLastMessageToParticipants(allParticipantIds, chatId, last);
+    }
+  }
+
+  emitMessageDeletedToChatRoom(chatId, messageId);
+
+  return { success: true };
 };

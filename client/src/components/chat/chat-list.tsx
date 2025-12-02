@@ -22,7 +22,6 @@ const ChatList = () => {
     addNewChat,
     updateChatLastMessage,
     deleteChat,
-    markChatAsRead,
   } = useChat();
   const { user } = useAuth();
   const currentUserId = user?.id || null;
@@ -109,7 +108,6 @@ const ChatList = () => {
   }, [socket, updateChatLastMessage]);
 
   const onRoute = (chatId: string) => {
-    markChatAsRead(chatId);
     navigate(`/chat/${chatId}`);
   };
 
@@ -136,7 +134,7 @@ const ChatList = () => {
           className="
          flex-1 h-[calc(100vh-100px)]
          overflow-y-auto
-         scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent
+         no-scrollbar
         "
         >
           <div className="px-3 pb-10 pt-2 space-y-0.5">

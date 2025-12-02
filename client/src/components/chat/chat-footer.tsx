@@ -29,6 +29,39 @@ const ChatFooter = ({
     message: z.string().optional(),
   });
 
+  const resizeImage = (dataUrl: string, maxWidth = 1280, quality = 0.8): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          const ratio = maxWidth / width;
+          width = maxWidth;
+          height = height * ratio;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressed = canvas.toDataURL("image/jpeg", quality);
+        resolve(compressed);
+      };
+
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  };
+
   const { sendMessage, isSendingMsg } = useChat();
   const { socket } = useSocket();
 
@@ -107,7 +140,11 @@ const ChatFooter = ({
     }
 
     const reader = new FileReader();
-    reader.onloadend = () => setImage(reader.result as string);
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      const compressed = await resizeImage(base64, 1280, 0.8);
+      setImage(compressed);
+    };
     reader.readAsDataURL(file);
   };
 

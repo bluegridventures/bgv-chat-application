@@ -9,9 +9,21 @@ passport.use(
     {
       jwtFromRequest: ExtractJwt.fromExtractors([
         (req) => {
-          const token = req.cookies.accessToken;
+          if (!req) return null as any;
+          if (Env.NODE_ENV !== "production") {
+            const devHeader = (req.headers["x-dev-access-token"] || req.headers["authorization"]) as string | undefined;
+            if (typeof devHeader === "string" && devHeader.length > 0) {
+              let headerToken = devHeader;
+              const lower = headerToken.toLowerCase();
+              if (lower.startsWith("bearer ")) {
+                headerToken = headerToken.slice(7);
+              }
+              if (headerToken) return headerToken as any;
+            }
+          }
+          const token = req.cookies?.accessToken;
           if (!token) throw new UnauthorizedException("Unauthorized access");
-          return token;
+          return token as any;
         },
       ]),
       secretOrKey: Env.JWT_SECRET,

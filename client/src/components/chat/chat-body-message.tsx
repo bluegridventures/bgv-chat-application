@@ -1,12 +1,15 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import type { MessageType } from "@/types/chat.type";
 import AvatarWithBadge from "../avatar-with-badge";
 import { formatChatTime } from "@/lib/helper";
 import { Button } from "../ui/button";
-import { ReplyIcon } from "lucide-react";
+import { Edit2, MoreVertical, ReplyIcon, SmilePlus, Trash2 } from "lucide-react";
 import VoiceNotePlayer from "@/components/media/voice-note-player";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { API } from "@/lib/axios-client";
+import { toast } from "sonner";
 
 interface Props {
   message: MessageType;
@@ -30,6 +33,65 @@ const ChatMessageBody = memo(({ message, onReply, onUserClick, onImageClick }: P
     "group flex gap-3 py-2 px-4 hover:bg-secondary/20 transition-colors",
     isCurrentUser && "flex-row-reverse text-left"
   );
+
+  const chatId = message.chatId || message.chat_id || "";
+
+  const reactionSummary = useMemo(() => {
+    if (!message.reactions || message.reactions.length === 0) return [] as { emoji: string; count: number }[];
+    const map = new Map<string, number>();
+    for (const r of message.reactions) {
+      if (!r.emoji) continue;
+      map.set(r.emoji, (map.get(r.emoji) || 0) + 1);
+    }
+    return Array.from(map.entries()).map(([emoji, count]) => ({ emoji, count }));
+  }, [message.reactions]);
+
+  const handleReact = async (emoji: string) => {
+    if (!chatId) return;
+    try {
+      await API.post("/chat/message/react", {
+        chatId,
+        messageId: message.id,
+        emoji,
+      });
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to react to message");
+    }
+  };
+
+  const handleEdit = async () => {
+    if (!isCurrentUser || !chatId) return;
+    const initial = message.content || "";
+    const next = window.prompt("Edit message", initial);
+    if (next === null) return;
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === initial) return;
+    try {
+      await API.patch("/chat/message/edit", {
+        chatId,
+        messageId: message.id,
+        content: trimmed,
+      });
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to edit message");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!isCurrentUser || !chatId) return;
+    const confirmDelete = window.confirm("Delete this message?");
+    if (!confirmDelete) return;
+    try {
+      await API.delete("/chat/message/delete", {
+        data: {
+          chatId,
+          messageId: message.id,
+        },
+      });
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to delete message");
+    }
+  };
 
   const contentWrapperClass = cn(
     "max-w-[65%] flex flex-col relative",
@@ -127,25 +189,84 @@ const ChatMessageBody = memo(({ message, onReply, onUserClick, onImageClick }: P
             )}
 
             {message.content && <p>{message.content}</p>}
+
+            {reactionSummary.length > 0 && (
+              <div
+                className={cn(
+                  "mt-1 flex flex-wrap gap-1",
+                  isCurrentUser ? "justify-end" : "justify-start"
+                )}
+              >
+                {reactionSummary.map(({ emoji, count }) => (
+                  <span
+                    key={emoji}
+                    className="px-1.5 py-0.5 rounded-full bg-background/70 border text-[11px] leading-none"
+                  >
+                    {emoji} {count > 1 ? count : ""}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* {Reply Icon Button} */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onReply(message)}
-            className="flex opacity-0 group-hover:opacity-100
-            transition-all rounded-lg !size-7 hover:bg-secondary/80
-            "
+          <div className={cn("flex items-center gap-1", isCurrentUser && "flex-row-reverse")}
           >
-            <ReplyIcon
-              size={14}
-              className={cn(
-                "text-muted-foreground",
-                isCurrentUser && "scale-x-[-1]"
-              )}
-            />
-          </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onReply(message)}
+              className="flex opacity-0 group-hover:opacity-100 transition-all rounded-lg !size-7 hover:bg-secondary/80"
+            >
+              <ReplyIcon
+                size={14}
+                className={cn(
+                  "text-muted-foreground",
+                  isCurrentUser && "scale-x-[-1]"
+                )}
+              />
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="flex opacity-0 group-hover:opacity-100 transition-all rounded-lg !size-7 hover:bg-secondary/80"
+                >
+                  <MoreVertical size={14} className="text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align={isCurrentUser ? "start" : "end"} className="min-w-[140px]">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                {isCurrentUser && (
+                  <DropdownMenuItem onClick={handleEdit}>
+                    <Edit2 className="h-3.5 w-3.5" />
+                    Edit
+                  </DropdownMenuItem>
+                )}
+                {isCurrentUser && (
+                  <DropdownMenuItem onClick={handleDelete} variant="destructive">
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>React</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => handleReact("👍")}>
+                  <SmilePlus className="h-3.5 w-3.5" /> 👍
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleReact("❤️")}>
+                  ❤️
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleReact("😂")}>
+                  😂
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleReact("😮")}>
+                  😮
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {message.status && (

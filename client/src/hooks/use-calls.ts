@@ -3,12 +3,15 @@ import { create } from "zustand";
 import { useSocket } from "@/hooks/use-socket";
 import { useAuth } from "@/hooks/use-auth";
 import { API } from "@/lib/axios-client";
+import { toast } from "sonner";
 
 export type CallType = "audio" | "video";
 
 interface IncomingCall {
   chatId: string;
   fromUserId: string;
+  fromUserName?: string;
+  fromUserAvatar?: string | null;
   type: CallType;
   timestamp: number;
 }
@@ -23,6 +26,7 @@ interface CallState {
   isCameraOff: boolean;
   incomingCall: IncomingCall | null;
   callType: CallType | null;
+  currentVideoDeviceId: string | null;
   currentPeerUserId: string | null; // the other peer in 1:1
   currentChatId: string | null;
   pendingOffer: any | null;
@@ -33,12 +37,42 @@ interface CallState {
   startCall: (chatId: string, toUserId: string, type: CallType) => Promise<void>;
   acceptCall: () => Promise<void>;
   rejectCall: () => void;
-  endCall: () => void;
+  endCall: (notifyRemote?: boolean) => void;
   toggleMute: () => void;
   toggleCamera: () => void;
+  switchCamera: () => Promise<void>;
 }
 
 let pc: RTCPeerConnection | null = null;
+
+let ringtoneAudio: HTMLAudioElement | null = null;
+
+const getRingtone = () => {
+  if (!ringtoneAudio) {
+    const baseUrl = import.meta.env.VITE_API_URL || "";
+    const encodedName = encodeURIComponent("bvg ringing tone.mp3");
+    ringtoneAudio = new Audio(`${baseUrl}/sound/${encodedName}`);
+    ringtoneAudio.loop = true;
+  }
+  return ringtoneAudio;
+};
+
+const playRingtone = () => {
+  try {
+    const audio = getRingtone();
+    audio.currentTime = 0;
+    void audio.play().catch(() => undefined);
+  } catch (e) {
+    console.error("Failed to play ringtone", e);
+  }
+};
+
+const stopRingtone = () => {
+  if (ringtoneAudio) {
+    ringtoneAudio.pause();
+    ringtoneAudio.currentTime = 0;
+  }
+};
 
 let cachedIce: RTCConfiguration | null = null;
 let cachedAt: number | null = null;
@@ -76,6 +110,7 @@ export const useCalls = create<CallState>()((set, get) => ({
   isCameraOff: false,
   incomingCall: null,
   callType: null,
+  currentVideoDeviceId: null,
   currentPeerUserId: null,
   currentChatId: null,
   pendingOffer: null,
@@ -105,6 +140,7 @@ export const useCalls = create<CallState>()((set, get) => ({
         return;
       }
       set({ incomingCall: payload, callType: payload.type, currentPeerUserId: payload.fromUserId, currentChatId: payload.chatId });
+      playRingtone();
     });
 
     socket.on("call:offer", async (payload: { chatId: string; fromUserId: string; sdp: any }) => {
@@ -145,15 +181,20 @@ export const useCalls = create<CallState>()((set, get) => ({
     });
 
     socket.on("call:accept", () => {
-      // remote accepted, nothing extra here for now
+      stopRingtone();
+      toast.success("Call accepted");
     });
 
     socket.on("call:reject", () => {
-      get().endCall();
+      stopRingtone();
+      toast.error("Call rejected");
+      get().endCall(false);
     });
 
     socket.on("call:end", () => {
-      get().endCall();
+      stopRingtone();
+      toast("Call ended");
+      get().endCall(false);
     });
   },
 
@@ -165,7 +206,10 @@ export const useCalls = create<CallState>()((set, get) => ({
     try {
       // get local media
       const local = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === "video" });
-      set({ localStream: local, remoteStream: null, inCall: true, callType: type, isMuted: false, isCameraOff: type !== "video" ? true : false, currentPeerUserId: toUserId, currentChatId: chatId });
+      const videoTrack = local.getVideoTracks()[0];
+      const settings = videoTrack?.getSettings();
+      const videoDeviceId = settings && typeof settings.deviceId === "string" ? settings.deviceId : null;
+      set({ localStream: local, remoteStream: null, inCall: true, callType: type, currentVideoDeviceId: videoDeviceId, isMuted: false, isCameraOff: type !== "video" ? true : false, currentPeerUserId: toUserId, currentChatId: chatId });
 
       // pc
       const ice = await getIceConfig();
@@ -187,6 +231,7 @@ export const useCalls = create<CallState>()((set, get) => ({
 
       // ring and send offer
       socket.emit("call:invite", { chatId, toUserId, type });
+      playRingtone();
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       socket.emit("call:offer", { chatId, toUserId, sdp: offer });
@@ -201,8 +246,12 @@ export const useCalls = create<CallState>()((set, get) => ({
     const { socket } = useSocket.getState();
     if (!call || !socket) return;
     try {
+      stopRingtone();
       const local = await navigator.mediaDevices.getUserMedia({ audio: true, video: call.type === "video" });
-      set({ localStream: local, remoteStream: null, inCall: true, isMuted: false, isCameraOff: call.type !== "video" ? true : false });
+      const videoTrack = local.getVideoTracks()[0];
+      const settings = videoTrack?.getSettings();
+      const videoDeviceId = settings && typeof settings.deviceId === "string" ? settings.deviceId : null;
+      set({ localStream: local, remoteStream: null, inCall: true, callType: call.type, currentVideoDeviceId: videoDeviceId, isMuted: false, isCameraOff: call.type !== "video" ? true : false });
 
       const ice = await getIceConfig();
       pc = new RTCPeerConnection(ice);
@@ -247,13 +296,15 @@ export const useCalls = create<CallState>()((set, get) => ({
   rejectCall: () => {
     const { socket } = useSocket.getState();
     const call = get().incomingCall;
+    stopRingtone();
     if (call) {
       socket?.emit("call:reject", { chatId: call.chatId, toUserId: call.fromUserId });
     }
     set({ incomingCall: null });
   },
 
-  endCall: () => {
+  endCall: (notifyRemote = true) => {
+    stopRingtone();
     const { socket } = useSocket.getState();
     const toUserId = get().currentPeerUserId;
     const chatId = get().currentChatId;
@@ -270,9 +321,9 @@ export const useCalls = create<CallState>()((set, get) => ({
     const local = get().localStream;
     local?.getTracks().forEach((t) => t.stop());
 
-    set({ localStream: null, remoteStream: null, inCall: false, callType: null, isMuted: false, isCameraOff: false, currentPeerUserId: null, currentChatId: null, pendingOffer: null, pendingCandidates: [] });
+    set({ localStream: null, remoteStream: null, inCall: false, callType: null, currentVideoDeviceId: null, isMuted: false, isCameraOff: false, currentPeerUserId: null, currentChatId: null, pendingOffer: null, pendingCandidates: [] });
 
-    if (socket && toUserId && chatId) {
+    if (socket && toUserId && chatId && notifyRemote) {
       socket.emit("call:end", { chatId, toUserId, reason: "ended" });
     }
   },
@@ -291,5 +342,75 @@ export const useCalls = create<CallState>()((set, get) => ({
     const next = !get().isCameraOff;
     local.getVideoTracks().forEach((t) => (t.enabled = !next));
     set({ isCameraOff: next });
+  },
+
+  switchCamera: async () => {
+    const state = get();
+    if (!state.inCall || state.callType !== "video" || !pc) {
+      toast.error("No active video call to switch camera");
+      return;
+    }
+
+    try {
+      if (!navigator.mediaDevices?.enumerateDevices) {
+        toast.error("Camera switching is not supported in this browser");
+        return;
+      }
+
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter((d) => d.kind === "videoinput");
+
+      if (videoDevices.length <= 1) {
+        toast.error("No other camera available");
+        return;
+      }
+
+      const currentId = state.currentVideoDeviceId;
+      const currentIndex = currentId
+        ? videoDevices.findIndex((d) => d.deviceId === currentId)
+        : -1;
+      const nextIndex =
+        currentIndex >= 0 && currentIndex < videoDevices.length - 1
+          ? currentIndex + 1
+          : 0;
+      const nextDevice = videoDevices[nextIndex];
+
+      const tempStream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: nextDevice.deviceId } },
+        audio: false,
+      });
+
+      const newVideoTrack = tempStream.getVideoTracks()[0];
+      if (!newVideoTrack) {
+        toast.error("Unable to access the selected camera");
+        return;
+      }
+
+      const sender = pc
+        .getSenders()
+        .find((s) => s.track && s.track.kind === "video");
+
+      if (!sender) {
+        toast.error("No video sender found for this call");
+        return;
+      }
+
+      newVideoTrack.enabled = !state.isCameraOff;
+      await sender.replaceTrack(newVideoTrack);
+
+      const oldLocal = state.localStream;
+      const audioTracks = oldLocal?.getAudioTracks() ?? [];
+      const combined = new MediaStream([...audioTracks, newVideoTrack]);
+
+      set({
+        localStream: combined,
+        currentVideoDeviceId: nextDevice.deviceId,
+      });
+
+      oldLocal?.getVideoTracks().forEach((t) => t.stop());
+    } catch (e) {
+      console.error("Failed to switch camera", e);
+      toast.error("Failed to switch camera");
+    }
   },
 }));

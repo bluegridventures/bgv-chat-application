@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String
+  email      String   @unique
+  password   String
+  avatar     String?
+  is_ai      Boolean  @default(false)
+  username   String?  @unique
+  bio        String?
+  role       String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // relations
+  chatsCreated     Chat[]           @relation("ChatCreatedBy")
+  chatsAdmin       Chat[]           @relation("ChatGroupAdmin")
+  messagesSent     Message[]        @relation("UserMessagesSent")
+  chatParticipants ChatParticipant[]
+  messageReactions MessageReaction[]
+}
+
+model Chat {
+  id                String           @id @default(uuid()) @db.Uuid
+  is_group          Boolean          @default(false)
+  group_name        String?
+  group_description String?
+  group_avatar      String?
+  group_admin_id    String?          @db.Uuid
+  created_by        String           @db.Uuid
+  last_message_id   String?          @db.Uuid
+  created_at        DateTime         @default(now())
+  updated_at        DateTime         @updatedAt
+
+  createdBy    User              @relation("ChatCreatedBy", fields: [created_by], references: [id], onDelete: Cascade)
+  groupAdmin   User?             @relation("ChatGroupAdmin", fields: [group_admin_id], references: [id])
+  participants ChatParticipant[]
+  messages     Message[]
+
+  @@index([created_by])
+  @@index([group_admin_id])
+  @@index([updated_at])
+}
+
+model ChatParticipant {
+  id         String   @id @default(uuid()) @db.Uuid
+  chat_id    String   @db.Uuid
+  user_id    String   @db.Uuid
+  created_at DateTime @default(now())
+
+  chat Chat @relation(fields: [chat_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([chat_id, user_id])
+  @@index([chat_id])
+  @@index([user_id])
+}
+
+model Message {
+  id          String   @id @default(uuid()) @db.Uuid
+  chat_id     String   @db.Uuid
+  sender_id   String   @db.Uuid
+  content     String?
+  image       String?
+  audio       String?
+  reply_to_id String?  @db.Uuid
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  chat    Chat @relation(fields: [chat_id], references: [id], onDelete: Cascade)
+  sender  User @relation("UserMessagesSent", fields: [sender_id], references: [id], onDelete: Cascade)
+  replyTo Message? @relation("MessageReply", fields: [reply_to_id], references: [id], onDelete: SetNull)
+  replies Message[] @relation("MessageReply")
+  reactions MessageReaction[]
+
+  @@index([chat_id, created_at])
+  @@index([sender_id])
+}
+
+model MessageReaction {
+  id         String   @id @default(uuid()) @db.Uuid
+  message_id String   @db.Uuid
+  user_id    String   @db.Uuid
+  emoji      String
+  created_at DateTime @default(now())
+
+  message Message @relation(fields: [message_id], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([message_id, user_id])
+  @@index([message_id])
+  @@index([user_id])
+}

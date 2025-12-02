@@ -1,8 +1,9 @@
-// Database connection is now handled by Supabase
-// This function is kept for compatibility but does nothing
+import { prisma } from "./prisma.config";
+
 const connectDatabase = async () => {
   try {
-    console.log("Database connection: Using Supabase (no connection needed)");
+    await prisma.$connect();
+    console.log("Database connection established via Prisma");
   } catch (error) {
     console.error("Database connection error:", error);
     process.exit(1);

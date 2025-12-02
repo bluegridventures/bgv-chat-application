@@ -13,8 +13,10 @@ const IncomingCallDialog = () => {
   }, [incomingCall]);
 
   const label = useMemo(() => {
-    if (!incomingCall) return "Incoming Call";
-    return `${incomingCall.type === "video" ? "Video" : "Voice"} call`;
+    if (!incomingCall) return "Incoming call";
+    const kind = incomingCall.type === "video" ? "Video" : "Voice";
+    const who = incomingCall.fromUserName || "Unknown user";
+    return `${kind} call from ${who}`;
   }, [incomingCall]);
 
   return (
@@ -25,7 +27,7 @@ const IncomingCallDialog = () => {
         </DialogHeader>
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            {incomingCall ? `From: ${incomingCall.fromUserId}` : ""}
+            {incomingCall ? "Tap Accept to answer or Reject to decline." : ""}
           </p>
           <div className="flex items-center justify-center gap-3">
             <Button onClick={acceptCall} className="gap-2">
