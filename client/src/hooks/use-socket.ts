@@ -2,7 +2,11 @@ import { io, Socket } from "socket.io-client";
 import { create } from "zustand";
 
 const useProxy = (import.meta.env as any).VITE_USE_PROXY === "1";
-const BASE_URL = useProxy ? "" : (import.meta.env.VITE_API_URL || "/");
+const isProd = import.meta.env.MODE === "production";
+// In production, bypass Vercel rewrites and connect directly to backend
+const BASE_URL = isProd
+  ? (import.meta.env.VITE_API_URL || "")
+  : (useProxy ? "" : (import.meta.env.VITE_API_URL || ""));
 
 interface SocketState {
   socket: Socket | null;
@@ -22,12 +26,14 @@ export const useSocket = create<SocketState>()((set, get) => ({
     let nextToken: string | null = null;
     if (import.meta.env.MODE === "development") {
       try { nextToken = sessionStorage.getItem("DEV_ACCESS_TOKEN"); } catch {}
+    } else {
+      try { nextToken = localStorage.getItem("ACCESS_TOKEN"); } catch {}
     }
 
     // Reuse existing socket only if dev token matches (or not in dev)
     const existingToken = (socket as any)?.auth?.token as string | undefined;
     const canReuse = !!socket && socket.connected && (
-      import.meta.env.MODE !== "development" || existingToken === nextToken || (!existingToken && !nextToken)
+      existingToken === nextToken || (!existingToken && !nextToken)
     );
     if (canReuse) return;
 
@@ -41,6 +47,7 @@ export const useSocket = create<SocketState>()((set, get) => ({
       withCredentials: true,
       autoConnect: true,
       path: "/api/socket.io",
+      transports: ["websocket"],
       auth,
     });
 

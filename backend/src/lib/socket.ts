@@ -28,12 +28,9 @@ export const initializeSocket = (httpServer: HTTPServer) => {
       const rawCookie = socket.handshake.headers.cookie || "";
       let token: string | undefined;
 
-      // Dev-only: allow token via handshake auth payload
-      if (Env.NODE_ENV !== "production") {
-        const authToken = (socket.handshake as any)?.auth?.token as string | undefined;
-        if (authToken && typeof authToken === "string" && authToken.length > 0) {
-          token = authToken;
-        }
+      const authToken = (socket.handshake as any)?.auth?.token as string | undefined;
+      if (authToken && typeof authToken === "string" && authToken.length > 0) {
+        token = authToken;
       }
 
       if (!token) {

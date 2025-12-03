@@ -1,8 +1,11 @@
 {
+  "version": 2,
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://bgv-chat-application-backend.onrender.com/api/:path*" },
+    { "source": "/api/socket.io", "destination": "https://bgv-chat-application-backend.onrender.com/api/socket.io" },
     { "source": "/api/socket.io/:path*", "destination": "https://bgv-chat-application-backend.onrender.com/api/socket.io/:path*" },
+    { "source": "/socket.io", "destination": "https://bgv-chat-application-backend.onrender.com/api/socket.io" },
     { "source": "/socket.io/:path*", "destination": "https://bgv-chat-application-backend.onrender.com/api/socket.io/:path*" },
+    { "source": "/api/:path*", "destination": "https://bgv-chat-application-backend.onrender.com/api/:path*" },
     { "source": "/sound/:path*", "destination": "https://bgv-chat-application-backend.onrender.com/sound/:path*" }
   ]
 }

@@ -13,6 +13,15 @@ export const registerController = asyncHandler(
 
     const user = await registerService(body);
     const userId = user.id;
+    const token = jwt.sign(
+      { userId },
+      Env.JWT_SECRET,
+      {
+        audience: ["user"],
+        expiresIn: (Env.JWT_EXPIRES_IN as any) || "7d",
+        algorithm: "HS256",
+      }
+    );
 
     return setJwtAuthCookie({
       res,
@@ -22,6 +31,7 @@ export const registerController = asyncHandler(
       .json({
         message: "User created & login successfully",
         user,
+        token,
       });
   }
 );
@@ -32,6 +42,15 @@ export const loginController = asyncHandler(
 
     const user = await loginService(body);
     const userId = user.id;
+    const token = jwt.sign(
+      { userId },
+      Env.JWT_SECRET,
+      {
+        audience: ["user"],
+        expiresIn: (Env.JWT_EXPIRES_IN as any) || "7d",
+        algorithm: "HS256",
+      }
+    );
     return setJwtAuthCookie({
       res,
       userId,
@@ -40,6 +59,7 @@ export const loginController = asyncHandler(
       .json({
         message: "User login successfully",
         user,
+        token,
       });
   }
 );

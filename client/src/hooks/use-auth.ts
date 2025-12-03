@@ -31,6 +31,11 @@ export const useAuth = create<AuthState>()((set) => ({
     try {
       const response = await API.post("/auth/register", data);
       set({ user: response.data.user });
+      // Store token for production header-based auth
+      try {
+        const token = (response as any)?.data?.token as string | undefined;
+        if (token) localStorage.setItem("ACCESS_TOKEN", token);
+      } catch {}
       // Dev-only: mint header token for this tab
       if (import.meta.env.MODE === "development") {
         try {
@@ -52,6 +57,11 @@ export const useAuth = create<AuthState>()((set) => ({
     try {
       const response = await API.post("/auth/login", data);
       set({ user: response.data.user });
+      // Store token for production header-based auth
+      try {
+        const token = (response as any)?.data?.token as string | undefined;
+        if (token) localStorage.setItem("ACCESS_TOKEN", token);
+      } catch {}
       // Dev-only: mint header token for this tab
       if (import.meta.env.MODE === "development") {
         try {
@@ -74,6 +84,8 @@ export const useAuth = create<AuthState>()((set) => ({
       set({ user: null });
       // Dev-only: clear header token
       try { sessionStorage.removeItem("DEV_ACCESS_TOKEN"); } catch {}
+      // Clear prod token
+      try { localStorage.removeItem("ACCESS_TOKEN"); } catch {}
       useSocket.getState().disconnectSocket();
       toast.success("Logout successfully");
     } catch (err: any) {
