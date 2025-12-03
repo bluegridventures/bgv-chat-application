@@ -1,7 +1,8 @@
 import { io, Socket } from "socket.io-client";
 import { create } from "zustand";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "/";
+const useProxy = (import.meta.env as any).VITE_USE_PROXY === "1";
+const BASE_URL = useProxy ? "" : (import.meta.env.VITE_API_URL || "/");
 
 interface SocketState {
   socket: Socket | null;

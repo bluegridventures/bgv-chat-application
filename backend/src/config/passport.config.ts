@@ -10,17 +10,15 @@ passport.use(
       jwtFromRequest: ExtractJwt.fromExtractors([
         (req) => {
           if (!req) return null as any;
-          if (Env.NODE_ENV !== "production") {
-            const devHeader = (req.headers["x-dev-access-token"] || req.headers["authorization"]) as string | undefined;
-            if (typeof devHeader === "string" && devHeader.length > 0) {
-              let headerToken = devHeader;
-              const lower = headerToken.toLowerCase();
-              if (lower.startsWith("bearer ")) {
-                headerToken = headerToken.slice(7);
-              }
-              if (headerToken) return headerToken as any;
-            }
+          // Prefer header token if present (works in prod and dev)
+          const headerVal = (req.headers["x-dev-access-token"] || req.headers["authorization"]) as string | undefined;
+          if (typeof headerVal === "string" && headerVal.length > 0) {
+            let headerToken = headerVal;
+            const lower = headerToken.toLowerCase();
+            if (lower.startsWith("bearer ")) headerToken = headerToken.slice(7);
+            if (headerToken) return headerToken as any;
           }
+          // Fallback to httpOnly cookie
           const token = req.cookies?.accessToken;
           if (!token) throw new UnauthorizedException("Unauthorized access");
           return token as any;

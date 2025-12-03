@@ -1,7 +1,9 @@
 import axios from "axios";
 
+const useProxy = import.meta.env.VITE_USE_PROXY === "1";
+
 export const API = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL}/api`,
+  baseURL: useProxy ? "/api" : `${import.meta.env.VITE_API_URL}/api`,
   withCredentials: true,
 });
 
