@@ -88,7 +88,7 @@ const ChatBody = ({ chatId, messages, onReply, onUserClick, onImageClick }: Prop
   const typingUsers = chatId ? getTypingUsers(chatId) : [];
 
   return (
-    <div className="w-full max-w-6xl mx-auto flex flex-col px-3 py-2">
+    <div className="w-full max-w-6xl mx-auto flex flex-col px-2 sm:px-3 py-2 gap-1 sm:gap-1.5">
       {uniqueMessages.map((message) => (
         <ChatBodyMessage
           key={message.id}

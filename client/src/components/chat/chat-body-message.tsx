@@ -94,12 +94,12 @@ const ChatMessageBody = memo(({ message, onReply, onUserClick, onImageClick }: P
   };
 
   const contentWrapperClass = cn(
-    "max-w-[65%] flex flex-col relative",
+    "max-w-[78%] sm:max-w-[65%] flex flex-col relative",
     isCurrentUser && "items-end"
   );
 
   const messageClass = cn(
-    "min-w-[200px] px-4 py-2.5 text-sm break-words shadow-sm backdrop-blur-sm",
+    "min-w-[40vw] sm:min-w-[200px] px-4 py-2.5 text-sm break-words shadow-sm backdrop-blur-sm",
     isCurrentUser
       ? "bg-primary/90 text-primary-foreground rounded-2xl rounded-tr-md"
       : "bg-secondary/80 text-foreground rounded-2xl rounded-tl-md"
@@ -175,7 +175,7 @@ const ChatMessageBody = memo(({ message, onReply, onUserClick, onImageClick }: P
               <img
                 src={message?.image || ""}
                 alt="Shared image"
-                className="rounded-lg max-w-xs cursor-pointer hover:opacity-90 transition-opacity"
+                className="rounded-lg w-full max-w-full sm:max-w-xs h-auto object-cover max-h-[60vh] cursor-pointer hover:opacity-90 transition-opacity"
                 onClick={() => onImageClick?.(message.image!, `Image from ${senderName}`)}
               />
             )}
@@ -184,7 +184,7 @@ const ChatMessageBody = memo(({ message, onReply, onUserClick, onImageClick }: P
               <VoiceNotePlayer
                 src={message.audio || ""}
                 compact
-                className="mt-1 max-w-xs"
+                className="mt-1 w-full max-w-xs"
               />
             )}
 

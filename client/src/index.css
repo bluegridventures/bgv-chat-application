@@ -2,9 +2,14 @@
 @import "tw-animate-css";
 
 html,
-hody {
+body {
   height: 100%;
   font-family: "DM Sans", serif !important;
+  min-height: 100svh;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 @custom-variant dark (&:is(.dark *));

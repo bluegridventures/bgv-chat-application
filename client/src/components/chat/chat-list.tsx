@@ -120,9 +120,9 @@ const ChatList = () => {
       border-r
       border-border/50
       bg-card
-      max-w-[calc(100%-40px)]
+      max-w-[calc(100%-50px)]
       w-full
-      left-10
+      left-[50px]
       z-[98]
       backdrop-blur-xl
     "

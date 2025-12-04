@@ -6,7 +6,7 @@ interface Props {
 }
 const AppWrapper = ({ children }: Props) => {
   return (
-    <div className="h-full">
+    <div className="min-h-svh">
       <AsideBar />
       <main className="lg:pl-10 h-full">{children}</main>
     </div>
