@@ -157,30 +157,6 @@ const SignUp = () => {
                 Create Account
               </Button>
 
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-gray-50 text-gray-500">Or</span>
-                </div>
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full h-12 border-black text-black hover:bg-gray-50 font-medium"
-              >
-                Continue with Google
-              </Button>
-
-
-              <div className="text-center text-sm text-gray-600 mt-6">
-                By signing up, you agree to our{" "}
-                <Link to="/privacy" className="underline hover:text-gray-900">
-                  privacy policy
-                </Link>
-              </div>
 
               <div className="text-center text-sm text-gray-600 mt-4">
                 Already have an account?{" "}
