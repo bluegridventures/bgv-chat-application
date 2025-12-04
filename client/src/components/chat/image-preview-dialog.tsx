@@ -66,10 +66,13 @@ export const ImagePreviewDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent showCloseButton={false} className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
-        <DialogHeader className="p-4 pb-2">
+      <DialogContent
+        showCloseButton={false}
+        className="w-[100vw] h-[100svh] max-w-none rounded-none p-0 overflow-hidden sm:max-w-4xl sm:h-auto sm:max-h-[90vh] sm:rounded-lg"
+      >
+        <DialogHeader className="p-3 pb-2 sm:p-4 sm:pb-2">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg font-semibold truncate">
+            <DialogTitle className="text-base sm:text-lg font-semibold truncate">
               {imageName}
             </DialogTitle>
             <div className="flex items-center gap-2">
@@ -82,7 +85,7 @@ export const ImagePreviewDialog = ({
               >
                 <ZoomOut className="h-4 w-4" />
               </Button>
-              <span className="text-sm text-muted-foreground min-w-[3rem] text-center">
+              <span className="text-xs sm:text-sm text-muted-foreground min-w-[3rem] text-center">
                 {Math.round(zoom * 100)}%
               </span>
               <Button
@@ -122,17 +125,18 @@ export const ImagePreviewDialog = ({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-auto p-4 pt-2">
-          <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex-1 overflow-auto p-2 pt-2 sm:p-4 sm:pt-2">
+          <div className="flex items-center justify-center min-h-[60svh] sm:min-h-[400px]">
             <img
               src={imageUrl}
               alt={imageName}
               className={cn(
-                "max-w-full max-h-full object-contain transition-transform duration-200 cursor-grab active:cursor-grabbing",
-                "select-none"
+                "block h-auto max-w-none object-contain transition-transform duration-200 select-none",
+                "cursor-grab active:cursor-grabbing"
               )}
               style={{
-                transform: `scale(${zoom}) rotate(${rotation}deg)`,
+                width: `${Math.max(zoom, 0.25) * 100}%`,
+                transform: `rotate(${rotation}deg)`,
               }}
               draggable={false}
               onDoubleClick={resetTransforms}
@@ -140,9 +144,9 @@ export const ImagePreviewDialog = ({
           </div>
         </div>
 
-        <div className="p-4 pt-2 border-t bg-muted/20">
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>Double-click image to reset zoom and rotation</span>
+        <div className="p-3 pt-2 sm:p-4 sm:pt-2 border-t bg-muted/20">
+          <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
+            <span>Double-tap image to reset zoom and rotation</span>
             <Button
               variant="outline"
               size="sm"
